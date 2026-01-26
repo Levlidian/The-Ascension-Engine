@@ -623,31 +623,39 @@ function initMonster(){
   let startAbility = rand(ORIGIN_MUTATIONS[origin]).a;
 
   return {
-        origin,
+    origin,
     trueOrigin: origin,
     originLocked: true,
-    level:1,
-    xp:0,
-    rank:"E",
-    sizeIndex:0,
 
-    abilities:[startAbility],
-    abilityLastUsed:{},
+    level: 1,
+    xp: 0,
+    rank: "E",
+    sizeIndex: 0,
 
-    originMutations:[],
-    adaptiveMutations:[],
-    scarMutations:[],
+    abilities: [startAbility],
+    abilityLastUsed: {},
 
-    humanoidDrift:[],
-    humanoidLastUsed:0,
+    originMutations: [],
+    adaptiveMutations: [],
+    scarMutations: [],
 
-    evolutionLine:"Monster",
-    ascensionLocked:false,
-    awaitingAscensionChoice:false,
+    humanoidDrift: [],
+    humanoidLastUsed: 0,
 
-    nemesisHunters:[]
+    humanoidCapabilities: {
+      speech: false,
+      disguise: false,
+      rulership: false
+    },
+
+    evolutionLine: "Monster",
+    ascensionLocked: false,
+    awaitingAscensionChoice: false,
+
+    nemesisHunters: []
   };
 }
+
 
 // ================= CONTEXT BUILDER =================
 function buildContextDescription(m){
