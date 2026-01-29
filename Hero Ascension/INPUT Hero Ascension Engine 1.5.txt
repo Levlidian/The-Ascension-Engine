@@ -14,8 +14,10 @@ const MODULES = {
   ELEMENTAL_BIAS: true
 };
 
+
 // ================= CORE HELPERS =================
 function rand(a){ return a[Math.floor(Math.random()*a.length)]; }
+
 
 // ================= STORY CARD HELPERS =================
 function ensureStoryIndex(){
@@ -36,6 +38,7 @@ function upsertCard({title, type, keys, entry, description}) {
   }
 }
 
+
 // ================= RANKS =================
 const RANKS = ["E","D","C","B","A","S","SS","SSS"];
 function heroRank(l){
@@ -52,6 +55,7 @@ function heroRank(l){
 // ================= MAGIC INTENT =================
 const MAGIC_INTENT = /channel|focus|surge|invoke|release|weave|gather/i;
 
+
 // ================= MAGIC TRIGGERS =================
 const MAGIC_TRIGGERS = {
   fire:/fire|flame|heat|ember|ignite/i,
@@ -65,6 +69,7 @@ const MAGIC_TRIGGERS = {
   healing:/heal|restore|mend|renew/i
 };
 
+
 // ================= ELEMENTAL PERSONALITY =================
 const ELEMENTAL_PERSONALITY = {
   fire:"Your power feels volatile and emotionally charged. Action comes before restraint.",
@@ -77,6 +82,7 @@ const ELEMENTAL_PERSONALITY = {
   gravity:"You think in inevitabilities. Pressure and dominance shape your will.",
   healing:"Preservation matters more than conquest. Survival is victory."
 };
+
 
 // ================= ASCENSION MUTATIONS =================
 const ASCENSION_MUTATIONS = {
@@ -103,6 +109,7 @@ const ASCENSION_MUTATIONS = {
     healing:"Healing preserves life by will alone."
   }
 };
+
 
 // ================= MAGIC SCHOOLS =================
 const MAGIC_SCHOOLS = {
@@ -406,6 +413,7 @@ healing: [
 
 };
 
+
 // ================= WEAPON SKILLS =================
 const WEAPON_SKILLS_POOL = [
   {k:"cleaving_form",d:"wide, forceful strikes"},
@@ -440,6 +448,7 @@ const WEAPON_SKILLS_POOL = [
   {k:"master_form",d:"style becomes instinct"}
 ];
 
+
 // ================= ISEKAI HERO INIT =================
 function initHero(){
   const startSchool = rand(Object.keys(MAGIC_SCHOOLS));
@@ -467,6 +476,7 @@ function initHero(){
   };
 }
 
+
 // ================= STORY CARD =================
 function buildHeroCard(h){
   let spells = [];
@@ -488,6 +498,7 @@ Rank: ${h.rank}
 Level: ${h.level}
 XP: ${h.xp} / ${xpNeeded}
 Dominant Element: ${h.dominantElement || "Unformed"}`,
+
     description:
 `Magic Disciplines:
 ${spells.join("\n\n") || "None"}
@@ -506,6 +517,7 @@ Ascension Path: ${h.ascensionPath}`
   });
 }
 
+
 // ================= MODIFIER =================
 var modifier = (text) => {
   const input = text.toLowerCase();
@@ -517,6 +529,10 @@ var modifier = (text) => {
   }
 
   const h = state.hero;
+
+  // ---------- LEARNING FLAGS ----------
+  let learnedSomething = false;
+  let learningNotes = [];
 
   // ---------- XP & LEVELING ----------
   h.xp += /fight|attack|train|practice|cast|strike|battle/i.test(input) ? 6 : 3;
@@ -552,22 +568,33 @@ var modifier = (text) => {
   // ---------- MAGIC LEARNING ----------
   if(MODULES.MAGIC_SYSTEM && MAGIC_INTENT.test(input)){
     for(let school in MAGIC_TRIGGERS){
-      if(MAGIC_TRIGGERS[school].test(input)){
+      if(
+        MAGIC_TRIGGERS[school].test(input) &&
+        MAGIC_SCHOOLS[school] &&
+        Array.isArray(MAGIC_SCHOOLS[school])
+      ){
         h.magicFamiliarity[school] =
           (h.magicFamiliarity[school] || 0) + 1;
 
         if(
           h.magicFamiliarity[school] >= 3 &&
-          h.magicKnown[school]?.length < MAGIC_SCHOOLS[school].length
+          (
+            !h.magicKnown[school] ||
+            h.magicKnown[school].length < MAGIC_SCHOOLS[school].length
+          )
         ){
           const pool = MAGIC_SCHOOLS[school].filter(
             x=>!h.magicKnown[school]?.some(y=>y.k===x.k)
           );
           if(pool.length){
-            if(!h.magicKnown[school]) h.magicKnown[school]=[];
+            if(!h.magicKnown[school]) h.magicKnown[school] = [];
             h.magicKnown[school].push(rand(pool));
+            learnedSomething = true;
+            learningNotes.push(
+              "Your understanding of "+school+" magic stabilizes into something repeatable."
+            );
           }
-          h.magicFamiliarity[school]=0;
+          h.magicFamiliarity[school] = 0;
         }
       }
     }
@@ -583,7 +610,13 @@ var modifier = (text) => {
     const pool = WEAPON_SKILLS_POOL.filter(
       x=>!h.weaponSkills.some(y=>y.k===x.k)
     );
-    if(pool.length) h.weaponSkills.push(rand(pool));
+    if(pool.length){
+      h.weaponSkills.push(rand(pool));
+      learnedSomething = true;
+      learningNotes.push(
+        "Your combat instincts harden into a recognizable fighting form."
+      );
+    }
   }
 
   // ---------- HYBRID TECHNIQUES ----------
@@ -601,6 +634,10 @@ var modifier = (text) => {
           name:techName,
           d:"a combined technique blending magic and weapon mastery"
         });
+        learnedSomething = true;
+        learningNotes.push(
+          "Magic and motion align into a technique uniquely your own."
+        );
       }
     }
   }
@@ -612,11 +649,15 @@ var modifier = (text) => {
     if(/archmage/i.test(input)){
       h.ascensionPath = "Archmage";
       h.awaitingAscension = false;
+      learnedSomething = true;
+      learningNotes.push("Your mastery crosses into ascension.");
     }
 
     if(/legend/i.test(input)){
       h.ascensionPath = "Legendary Hero";
       h.awaitingAscension = false;
+      learnedSomething = true;
+      learningNotes.push("Your deeds crystallize into legend.");
     }
   }
 
@@ -629,13 +670,21 @@ var modifier = (text) => {
     "Magic only manifests when intent is expressed. "+
     "Abilities emerge through repetition, emotion, and pressure.";
 
-  if(h.dominantElement){
+  if(
+    h.dominantElement &&
+    ELEMENTAL_PERSONALITY[h.dominantElement]
+  ){
     state.memory.context +=
       "\n\nELEMENTAL BIAS:\n"+
       ELEMENTAL_PERSONALITY[h.dominantElement];
   }
 
-  if(h.ascensionPath !== "Mortal" && h.dominantElement){
+  if(
+    h.ascensionPath !== "Mortal" &&
+    h.dominantElement &&
+    ASCENSION_MUTATIONS[h.ascensionPath] &&
+    ASCENSION_MUTATIONS[h.ascensionPath][h.dominantElement]
+  ){
     state.memory.context +=
       "\n\nASCENSION MUTATION:\n"+
       ASCENSION_MUTATIONS[h.ascensionPath][h.dominantElement];
@@ -648,18 +697,28 @@ var modifier = (text) => {
       "Type **legend** to ascend through myth and deed.";
   }
 
+  if(learnedSomething){
+    state.memory.context +=
+      "\n\nLEARNING SIGNAL:\n"+
+      "Explicitly acknowledge growth this turn through narration. "+
+      "Use internal sensation, resistance changing, clarity snapping into place, "+
+      "or magic responding differently. "+
+      "Never name mechanics or systems.\n"+
+      learningNotes.join(" ");
+  }
+
   return {text};
 };
 
+
 // ================= SAFETY / HARDENING =================
 
-// Ensure state.memory always exists
 if(!state.memory) state.memory = {};
 
-// Prevent context overflow from persisting endlessly
 if(state.memory.context && state.memory.context.length > 1500){
   state.memory.context = state.memory.context.slice(0, 1500);
 }
+
 
 // ================= AI DUNGEON GUIDANCE =================
 state.memory.systemRules =
