@@ -1,0 +1,861 @@
+// =====================================================
+// MONARCH ASCENSION ENGINE v1.2
+// Solo Leveling • Monster-Engine Appraisal
+// AI DUNGEON – READY TO PASTE
+// =====================================================
+
+// ================= INNER SELF =================
+if (typeof InnerSelf === "function") {
+  InnerSelf("input");
+}
+
+// ================= CONSTANTS =================
+const MAX_AUTHORITY = 20;
+const MAX_MAGIC = 20;
+const MAX_MONARCH = 20;
+
+// ================= HELPERS =================
+function rand(a){ return a[Math.floor(Math.random()*a.length)]; }
+
+// ================= STORY CARD UPSERT (MONSTER ENGINE STYLE) =================
+function upsertCard({ title, type, keys, entry, description }) {
+  if (!Array.isArray(storyCards)) return;
+
+  let card = storyCards.find(c => c.title === title);
+
+  if (!card) {
+    storyCards.push({ title, type, keys, entry, description });
+  } else {
+    card.type = type;
+    card.keys = keys;
+    card.entry = entry;
+    card.description = description;
+  }
+}
+
+// ================= MONARCH DATA =================
+const MONARCHS = [
+  { id: "shadow", name: "Monarch of Shadows" },
+  { id: "beast", name: "Monarch of Beasts" },
+  { id: "frost", name: "Monarch of Frost" },
+  { id: "decay", name: "Monarch of Decay" },
+  { id: "iron", name: "Monarch of Iron" },
+  { id: "destruction", name: "Monarch of Destruction" }
+];
+
+const MONARCH_HINT_TITLES = {
+  shadow: "Bearer of Lingering Darkness",
+  beast: "The One Who Hunts Alone",
+  frost: "Marked by Endless Cold",
+  decay: "The Tainted Survivor",
+  iron: "Unyielding Presence",
+  destruction: "Harbinger Unfinished"
+};
+
+// ================= PERSONALITIES =================
+const ELITE_PERSONALITIES = [
+  "Overconfident","Deadpan","Dramatic","Polite","Meticulous",
+  "Sarcastic","Overzealous","Blunt","Distracted","Stoic"
+];
+
+const COMMANDER_PERSONALITIES = [
+  "Grandiose","Annoyed","Strategic","Theatrical","Dry",
+  "Battle-Hungry","Protective","Philosophical","Imperious","Calm"
+];
+
+const NAMES = [
+  "Kael","Vorin","Seth","Irix","Mord","Thane","Ravik",
+  "Nyx","Aurel","Drex","Korr","Vaal","Eris","Zane","Lior"
+];
+
+// ================= RANK =================
+function getRank(l){
+  if(l>=90) return "SSS";
+  if(l>=70) return "SS";
+  if(l>=50) return "S";
+  if(l>=35) return "A";
+  if(l>=25) return "B";
+  if(l>=15) return "C";
+  if(l>=5) return "D";
+  return "E";
+}
+
+// ================= INITIAL STATE =================
+function initMonarch(){
+  return {
+    level: 1,
+    xp: 0,
+    rank: "E",
+    monarch: rand(MONARCHS),
+    armyUnlocked: false,
+    army: {
+      total: 0,
+      knights: 0,
+      elites: [],
+      commanders: []
+    },
+    abilities: {},
+    abilityUsage: {}
+  };
+}
+
+// ================= AUTHORITY ABILITIES (30 TOTAL) =================
+// Solo Leveling–style physical, instinctive, combat-grown abilities
+
+const AUTHORITY_ABILITIES = {
+  "Stealth Mastery": [
+    "Stealth Mastery",
+    "Perfect Concealment",
+    "Presence Erasure",
+    "Existence Null"
+  ],
+  "Enhanced Strength": [
+    "Enhanced Strength",
+    "Monstrous Power",
+    "Overwhelming Might",
+    "Mythic Force"
+  ],
+  "Enhanced Speed": [
+    "Enhanced Speed",
+    "Blink Movement",
+    "Supersonic Motion",
+    "Time-Splitting Dash"
+  ],
+  "Enhanced Perception": [
+    "Enhanced Perception",
+    "Danger Sense",
+    "Precognitive Awareness",
+    "Future-Read Reflexes"
+  ],
+  "Regeneration": [
+    "Regeneration",
+    "Rapid Recovery",
+    "Battlefield Renewal",
+    "Undying Flesh"
+  ],
+  "Endurance": [
+    "Endurance",
+    "Iron Constitution",
+    "Tireless Body",
+    "Limitless Stamina"
+  ],
+  "Combat Sense": [
+    "Combat Sense",
+    "Instinctive Response",
+    "Perfect Reaction",
+    "Unavoidable Counter"
+  ],
+  "Weapon Mastery": [
+    "Weapon Mastery",
+    "Adaptive Arms",
+    "Absolute Proficiency",
+    "Weapon Transcendence"
+  ],
+  "Killing Intent": [
+    "Killing Intent",
+    "Lethal Pressure",
+    "Death Aura",
+    "Inevitable Slaughter"
+  ],
+  "Battle Trance": [
+    "Battle Trance",
+    "Flow State",
+    "Perfect Combat Rhythm",
+    "Endless War State"
+  ],
+  "Pain Resistance": [
+    "Pain Resistance",
+    "Pain Nullification",
+    "Suffering Ignored",
+    "Damage Irrelevance"
+  ],
+  "Critical Precision": [
+    "Critical Precision",
+    "Vital Targeting",
+    "Perfect Strikes",
+    "Guaranteed Lethality"
+  ],
+  "Threat Suppression": [
+    "Threat Suppression",
+    "Hostile Pressure",
+    "Enemy Paralysis",
+    "Absolute Dominance"
+  ],
+  "Adaptive Defense": [
+    "Adaptive Defense",
+    "Damage Reduction",
+    "Threat Hardening",
+    "Perfect Resistance"
+  ],
+  "Battlefield Awareness": [
+    "Battlefield Awareness",
+    "Total Zone Control",
+    "Combat Omniscience",
+    "Warfield Mastery"
+  ],
+  "Lone Hunter": [
+    "Lone Hunter",
+    "Solo Predator",
+    "One-Man Army",
+    "Singular Calamity"
+  ],
+  "Bloodlust": [
+    "Bloodlust",
+    "Battle Hunger",
+    "Combat Frenzy",
+    "Endless Slaughter Drive"
+  ],
+  "Momentum Control": [
+    "Momentum Control",
+    "Relentless Advance",
+    "Unstoppable Assault",
+    "Infinite Onslaught"
+  ],
+  "Survival Instinct": [
+    "Survival Instinct",
+    "Death Avoidance",
+    "Fate Evasion",
+    "Impossible Survival"
+  ],
+  "Limit Break": [
+    "Limit Break",
+    "Forced Overdrive",
+    "Beyond Human",
+    "Transcendent State"
+  ],
+  "Enhanced Agility": [
+    "Enhanced Agility",
+    "Fluid Movement",
+    "Untouchable Motion",
+    "Absolute Evasion"
+  ],
+  "Aura Pressure": [
+    "Aura Pressure",
+    "Oppressive Presence",
+    "Crushing Aura",
+    "Existence Pressure"
+  ],
+  "Target Lock": [
+    "Target Lock",
+    "Absolute Focus",
+    "Unbroken Pursuit",
+    "No Escape"
+  ],
+  "Weapon Recall": [
+    "Weapon Recall",
+    "Instant Retrieval",
+    "Bound Armament",
+    "Will-Bound Arsenal"
+  ],
+  "Adrenal Surge": [
+    "Adrenal Surge",
+    "Combat Rush",
+    "Overclocked Body",
+    "Limitless Burst"
+  ],
+  "Environmental Adaptation": [
+    "Environmental Adaptation",
+    "Terrain Mastery",
+    "Hostile Immunity",
+    "World Compatibility"
+  ],
+  "Hunter's Intuition": [
+    "Hunter's Intuition",
+    "Prey Awareness",
+    "Absolute Tracking",
+    "Fated Hunt"
+  ],
+  "Threat Analysis": [
+    "Threat Analysis",
+    "Weakness Identification",
+    "Optimal Elimination",
+    "Perfect Counterplan"
+  ],
+  "Combat Learning": [
+    "Combat Learning",
+    "Rapid Adaptation",
+    "Instant Mastery",
+    "Battlefield Evolution"
+  ],
+  "Last Stand": [
+    "Last Stand",
+    "Refusal to Fall",
+    "Death Denial",
+    "Final Survivor"
+  ]
+};
+
+// ================= MAGIC ABILITIES (20 TOTAL) =================
+
+const MAGIC_ABILITIES = {
+  "Shadow Magic": [
+    "Shadow Magic",
+    "Umbral Sorcery",
+    "Voidcasting",
+    "Primordial Darkness"
+  ],
+  "Frost Magic": [
+    "Frost Magic",
+    "Glacial Control",
+    "Absolute Zero Arts",
+    "Frozen World"
+  ],
+  "Fire Magic": [
+    "Fire Magic",
+    "Infernal Arts",
+    "Solar Conflagration",
+    "Starfire Apocalypse"
+  ],
+  "Decay Magic": [
+    "Decay Magic",
+    "Corrosion Sorcery",
+    "Entropy Weaving",
+    "Final Dissolution"
+  ],
+  "Reinforcement Magic": [
+    "Reinforcement Magic",
+    "Arcane Fortification",
+    "Mythic Enhancement",
+    "Perfected Vessel"
+  ],
+  "Blood Magic": [
+    "Blood Magic",
+    "Sanguine Arts",
+    "Crimson Dominion",
+    "Throne of Flesh"
+  ],
+  "Lightning Magic": [
+    "Lightning Magic",
+    "Storm Invocation",
+    "Divine Thunder",
+    "Heaven Rend"
+  ],
+  "Gravity Magic": [
+    "Gravity Magic",
+    "Mass Control",
+    "Singularity Arts",
+    "Reality Collapse"
+  ],
+  "Void Magic": [
+    "Void Magic",
+    "Nothingness Shaping",
+    "Existence Erasure",
+    "True Oblivion"
+  ],
+  "Soul Magic": [
+    "Soul Magic",
+    "Essence Binding",
+    "Spirit Dominion",
+    "Absolute Soul Rule"
+  ],
+  "Curse Magic": [
+    "Curse Magic",
+    "Hexcraft",
+    "Calamity Weaving",
+    "Fate Corruption"
+  ],
+  "Earth Magic": [
+    "Earth Magic",
+    "Tectonic Control",
+    "Worldshaper",
+    "Planetary Dominion"
+  ],
+  "Wind Magic": [
+    "Wind Magic",
+    "Atmospheric Command",
+    "Sky Tyranny",
+    "Endless Tempest"
+  ],
+  "Light Magic": [
+    "Light Magic",
+    "Radiant Control",
+    "Judgment Light",
+    "Final Revelation"
+  ],
+  "Dark Flame Magic": [
+    "Dark Flame Magic",
+    "Abyssal Fire",
+    "Voidflame",
+    "Black Sun"
+  ],
+  "Plague Magic": [
+    "Plague Magic",
+    "Pandemic Craft",
+    "World Rot",
+    "Extinction Bloom"
+  ],
+  "Time Magic": [
+    "Time Magic",
+    "Temporal Distortion",
+    "Causality Rewrite",
+    "Endless Now"
+  ],
+  "Space Magic": [
+    "Space Magic",
+    "Spatial Severance",
+    "Dimensional Rule",
+    "Infinite Expanse"
+  ],
+  "Necromancy": [
+    "Necromancy",
+    "Death Calling",
+    "Grave Dominion",
+    "Throne of the Dead"
+  ],
+  "Mind Magic": [
+    "Mind Magic",
+    "Psionic Control",
+    "Thought Dominion",
+    "Absolute Will"
+  ]
+};
+
+// ================= MONARCH ABILITIES =================
+// Each Monarch ability evolves through 4 tiers
+// Unlocked once Rank A is achieved (Army Unlocked)
+
+const MONARCH_ABILITIES = {
+
+  // ===== SHADOW MONARCH =====
+  shadow: {
+    "Shadow Legion": [
+      "Shadow Legion",
+      "Endless Shadows",
+      "Abyssal Host",
+      "Army of Eternal Night"
+    ],
+    "Sovereign of Silence": [
+      "Sovereign of Silence",
+      "Mute Reality",
+      "Soundless World",
+      "Perfect Stillness"
+    ],
+    "Night Sovereignty": [
+      "Night Sovereignty",
+      "Total Darkness",
+      "Eclipsed World",
+      "Everlasting Night"
+    ],
+    "Shadow Assimilation": [
+      "Shadow Assimilation",
+      "Form Dissolution",
+      "Umbral Unity",
+      "One With Darkness"
+    ],
+    "Black Throne": [
+      "Black Throne",
+      "Abyssal Seat",
+      "Void Dominion",
+      "Throne of Night"
+    ]
+  },
+
+  // ===== FROST MONARCH =====
+  frost: {
+    "Glacial Throne": [
+      "Glacial Throne",
+      "Frozen Dominion",
+      "Absolute Winter",
+      "World Entombed"
+    ],
+    "Cold Sovereign": [
+      "Cold Sovereign",
+      "Heat Erasure",
+      "Thermal Silence",
+      "Absolute Zero"
+    ],
+    "Permafrost Army": [
+      "Permafrost Army",
+      "Frozen Host",
+      "Eternal Ice Legion",
+      "Unmelting Horde"
+    ],
+    "Frozen Time": [
+      "Frozen Time",
+      "Slowed Reality",
+      "Still Moment",
+      "Stopped World"
+    ],
+    "White Oblivion": [
+      "White Oblivion",
+      "Blizzard End",
+      "World Freeze",
+      "Absolute Silence"
+    ]
+  },
+
+  // ===== BEAST MONARCH =====
+  beast: {
+    "Apex Command": [
+      "Apex Command",
+      "Pack Dominance",
+      "Alpha Supremacy",
+      "King of Beasts"
+    ],
+    "Predator Realm": [
+      "Predator Realm",
+      "Hunting Ground",
+      "Blood Territory",
+      "Endless Hunt"
+    ],
+    "Savage Evolution": [
+      "Savage Evolution",
+      "Adaptive Flesh",
+      "Perfect Beast",
+      "Primeval Apex"
+    ],
+    "Howl of Rule": [
+      "Howl of Rule",
+      "Fear Roar",
+      "World Tremor",
+      "Instinct Submission"
+    ],
+    "Endless Hunt": [
+      "Endless Hunt",
+      "Relentless Pursuit",
+      "No Escape",
+      "Final Capture"
+    ]
+  },
+
+  // ===== DECAY MONARCH =====
+  decay: {
+    "Rot Sovereignty": [
+      "Rot Sovereignty",
+      "Corruption Rule",
+      "Entropy Dominion",
+      "End of All"
+    ],
+    "Plague Throne": [
+      "Plague Throne",
+      "World Infection",
+      "Global Decay",
+      "Extinction Age"
+    ],
+    "Decay Assimilation": [
+      "Decay Assimilation",
+      "Flesh Collapse",
+      "Existence Rot",
+      "Nothing Remains"
+    ],
+    "Entropy Field": [
+      "Entropy Field",
+      "Stability Collapse",
+      "Reality Breakdown",
+      "Final Dissolution"
+    ],
+    "Grave Authority": [
+      "Grave Authority",
+      "Death Rule",
+      "Silent World",
+      "Total Stillness"
+    ]
+  },
+
+  // ===== IRON MONARCH =====
+  iron: {
+    "Iron Dominion": [
+      "Iron Dominion",
+      "Unbreakable Rule",
+      "Perfect Defense",
+      "Absolute Fortitude"
+    ],
+    "Steel Army": [
+      "Steel Army",
+      "Living Fortress",
+      "Marching Citadel",
+      "Iron Legion"
+    ],
+    "Immutable Form": [
+      "Immutable Form",
+      "Damage Negation",
+      "Perfect Structure",
+      "Unbreakable Existence"
+    ],
+    "War Engine": [
+      "War Engine",
+      "Endless Assault",
+      "Siege King",
+      "Walking Catastrophe"
+    ],
+    "Adamant Throne": [
+      "Adamant Throne",
+      "Eternal Bastion",
+      "World Shield",
+      "Final Wall"
+    ]
+  },
+
+  // ===== DESTRUCTION MONARCH =====
+  destruction: {
+    "Cataclysm Rule": [
+      "Cataclysm Rule",
+      "Apocalyptic Force",
+      "World Ruin",
+      "Final Destruction"
+    ],
+    "Ruin Sovereign": [
+      "Ruin Sovereign",
+      "City Breaker",
+      "World Shatter",
+      "Existence End"
+    ],
+    "Annihilation Will": [
+      "Annihilation Will",
+      "Total Erasure",
+      "Nothing Left",
+      "Absolute Void"
+    ],
+    "Collapse Field": [
+      "Collapse Field",
+      "Reality Tear",
+      "Dimensional Break",
+      "End of Space"
+    ],
+    "Final End": [
+      "Final End",
+      "Last Moment",
+      "No After",
+      "Absolute End"
+    ]
+  }
+
+};
+
+// ================= ABILITY EVOLUTION =================
+// Abilities evolve by repeated narrative use.
+// Each tier requires (current tier + 1) × 3 successful triggers.
+
+function evolveAbility(m, base, table, cap){
+  // Prevent exceeding category cap unless already owned
+  if (cap && Object.keys(m.abilities).length >= cap && !m.abilities[base]) {
+    return;
+  }
+
+  if (!m.abilityUsage[base]) {
+    m.abilityUsage[base] = 0;
+  }
+
+  m.abilityUsage[base]++;
+
+  const currentTier = m.abilities[base] || 0;
+  const requiredUses = (currentTier + 1) * 3;
+
+  if (m.abilityUsage[base] >= requiredUses && currentTier < 4) {
+    const oldName = table[base][currentTier];
+    const newName = table[base][currentTier + 1];
+
+    m.abilities[base] = currentTier + 1;
+    m.abilityUsage[base] = 0;
+
+    state.message = `System Notice: ${oldName} has evolved into ${newName}.`;
+  }
+}
+
+// ================= XP & LEVELING =================
+// XP scales by 20 per level.
+// XP is gained through narrative keywords.
+
+function gainXP(m, input){
+  // High-intensity actions
+  if (
+    /fight|battle|kill|slay|hunt|combat|war|clash|massacre|execution|dominate|overpower|defeat|bleed|survive|endure|resist/.test(input)
+  ) {
+    m.xp += 10;
+  }
+  // Low-intensity actions
+  else if (
+    /train|practice|prepare|travel|explore|search|observe|focus|plan|rest|recover|study|reflect/.test(input)
+  ) {
+    m.xp += 5;
+  }
+
+  // Level up loop (carryover XP)
+  while (m.xp >= m.level * 20) {
+    m.xp -= m.level * 20;
+    m.level += 1;
+  }
+
+  m.rank = getRank(m.level);
+}
+
+// ================= ARMY AWAKENING =================
+// Army unlocks automatically at Rank A.
+
+function checkArmyAwakening(m){
+  if (!m.armyUnlocked && m.rank === "A") {
+    m.armyUnlocked = true;
+    state.message = "Your Monarch authority awakens. The army answers.";
+  }
+}
+
+// ================= ARISE COMMAND =================
+// "arise", "arise 5", "arise elite", "arise commander 2"
+
+function processArise(m, input){
+  if (!m.armyUnlocked) return;
+  if (!input.startsWith("arise")) return;
+
+  let amount = 1;
+  const match = input.match(/\d+/);
+  if (match) amount = parseInt(match[0]);
+
+  let type = "knight";
+  if (input.includes("elite")) type = "elite";
+  if (input.includes("commander")) type = "commander";
+
+  for (let i = 0; i < amount && m.army.total < 200; i++) {
+    if (type === "elite" && m.army.elites.length < 10) {
+      m.army.elites.push({
+        name: rand(NAMES),
+        personality: rand(ELITE_PERSONALITIES)
+      });
+    }
+    else if (type === "commander" && m.army.commanders.length < 5) {
+      m.army.commanders.push({
+        name: rand(NAMES),
+        personality: rand(COMMANDER_PERSONALITIES)
+      });
+    }
+    else if (type === "knight") {
+      m.army.knights += 1;
+    }
+    else {
+      break;
+    }
+
+    m.army.total += 1;
+  }
+}
+
+// ================= ABILITY TRIGGERS =================
+// Narrative keyword matching to trigger ability growth.
+
+function processAbilities(m, input){
+  // Authority abilities
+  for (const key in AUTHORITY_ABILITIES) {
+    const trigger = key.split(" ")[0].toLowerCase();
+    if (input.includes(trigger)) {
+      evolveAbility(m, key, AUTHORITY_ABILITIES, MAX_AUTHORITY);
+    }
+  }
+
+  // Magic abilities
+  if (/magic|spell|cast|invoke|incant|ritual|channel|sorcery|hex|curse/.test(input)) {
+    for (const key in MAGIC_ABILITIES) {
+      const trigger = key.split(" ")[0].toLowerCase();
+      if (input.includes(trigger)) {
+        evolveAbility(m, key, MAGIC_ABILITIES, MAX_MAGIC);
+      }
+    }
+  }
+
+  // Monarch abilities (requires army unlocked)
+  if (m.armyUnlocked && MONARCH_ABILITIES[m.monarch.id]) {
+    for (const key in MONARCH_ABILITIES[m.monarch.id]) {
+      const trigger = key.split(" ")[0].toLowerCase();
+      if (input.includes(trigger)) {
+        evolveAbility(m, key, MONARCH_ABILITIES[m.monarch.id], MAX_MONARCH);
+      }
+    }
+  }
+}
+
+// ================= SELF APPRAISAL (MONSTER ENGINE STYLE) =================
+// Uses upsertCard by title.
+// Safe to call every turn.
+// Guarantees ONE appraisal card forever.
+
+function buildSelfStoryCard(m){
+  const xpNeeded = m.level * 20;
+
+  const displayTitle =
+    m.armyUnlocked
+      ? m.monarch.name
+      : MONARCH_HINT_TITLES[m.monarch.id];
+
+  const abilityText = Object.keys(m.abilities).length
+    ? Object.keys(m.abilities)
+        .map(a => `- ${a} (Tier ${m.abilities[a]})`)
+        .join("\n")
+    : "None";
+
+  let armyText = "Locked";
+  if (m.armyUnlocked) {
+    armyText =
+`Total: ${m.army.total} / 200
+Knights: ${m.army.knights}
+Elites: ${m.army.elites.length ? m.army.elites.map(e => e.name).join(", ") : "None"}
+Commanders: ${m.army.commanders.length ? m.army.commanders.map(c => c.name).join(", ") : "None"}`;
+  }
+
+  const description =
+`${displayTitle}
+Rank: ${m.rank}
+Level: ${m.level}
+XP: ${m.xp} / ${xpNeeded}
+
+Abilities:
+${abilityText}
+
+Army:
+${armyText}
+
+System State:
+${m.armyUnlocked
+  ? "Monarch authority awakened. The army answers your call."
+  : "Dormant authority. Power incomplete."}
+`;
+
+  upsertCard({
+    title: "Self Appraisal",
+    type: "World",
+    keys: "Self, Monarch, Status, System",
+    entry: "A constantly updating system appraisal of your growth and authority.",
+    description
+  });
+}
+
+// ================= MODIFIER =================
+// Central execution hook.
+// Safe, deterministic, Monster-Engine-style behavior.
+
+var modifier = (text) => {
+  const input = text.toLowerCase();
+
+  // Initialize once
+  if (!state.monarch) {
+    state.monarch = initMonarch();
+    buildSelfStoryCard(state.monarch);
+    return { text };
+  }
+
+  const m = state.monarch;
+
+  // XP & Leveling
+  gainXP(m, input);
+
+  // Rank-based awakening
+  checkArmyAwakening(m);
+
+  // Ability growth
+  processAbilities(m, input);
+
+  // Army commands
+  processArise(m, input);
+
+  // Appraisal update triggers (expanded vocabulary)
+  if (
+    /status|system|appraisal|rank|level|power|authority|growth|command|army|shadow|throne|dominion|evolve|awaken/.test(input)
+  ) {
+    buildSelfStoryCard(m);
+  } else {
+    // Still safe to update every turn
+    buildSelfStoryCard(m);
+  }
+
+  return { text };
+};
+
+// REQUIRED
+modifier(text);
