@@ -1,0 +1,311 @@
+input
+
+MONSTER ASCENSION ENGINE v3.4
+Comprehensive README (AI Dungeon)
+
+============================================================
+OVERVIEW
+============================================================
+Monster Ascension Engine v3.4 is a fully narrative-driven progression system
+designed for AI Dungeon. You play as an evolving monster whose form, instincts,
+and role in the world change over time.
+
+The system emphasizes:
+- Organic evolution through action
+- Mutation-driven abilities
+- Seasonal and time-based world pressure
+- Reactive nemesis hunters
+- Ascension into Demon Lord or Titan paths
+- Compatibility with InnerSelf for stable long-form play
+
+This engine uses NO hard stats, damage numbers, or mechanical combat rules.
+Everything is expressed through narrative pressure and Story Cards.
+
+------------------------------------------------------------
+REQUIRED COMPATIBILITY
+------------------------------------------------------------
+✔ AI Dungeon scripting system (Modifiers)
+✔ Story Cards enabled
+✔ InnerSelf enabled (recommended, optional but supported)
+
+InnerSelf is detected automatically. No additional setup is required.
+
+============================================================
+INSTALLATION (AI DUNGEON)
+============================================================
+
+1. Open your AI Dungeon scenario or adventure.
+2. Go to:
+   Edit Adventure → Scripting → Modifiers
+3. Create a NEW Modifier.
+4. Copy and paste ALL PARTS of the script (PART 1 through PART 5)
+   in order into the modifier.
+5. Save.
+
+IMPORTANT:
+- Do NOT split the script across multiple modifiers.
+- Do NOT remove or reorder parts.
+- The engine initializes automatically on first input.
+
+============================================================
+STARTING THE ENGINE
+============================================================
+
+When the game begins, your creature is unformed.
+
+You will be prompted to declare your origin.
+
+Use the following format (required):
+
+[Origin: Wolf]
+[Origin: Ghoul]
+[Origin: Demon]
+etc.
+
+Valid origins include:
+Wolf, Black Hound, Ghoul, Barrow Revenant, Stone Golem,
+Stonebound Warden, Ent, Wraith, Serpent, Large Spider,
+Chimera, Skin-Stealer, Fey Abomination, Drake, Ash Drake,
+Demon, Night Warden, Bog Horror, Plague Host, Deep Wyrm
+
+Once chosen, your origin is LOCKED.
+
+============================================================
+PROGRESSION & EVOLUTION
+============================================================
+
+Progression is automatic and narrative-based.
+
+You gain experience every turn:
+- Violent or decisive actions grant more XP
+- Passive or exploratory actions grant less XP
+
+As you level:
+- Rank increases (E → SSS)
+- Size increases naturally
+- Mutations unlock
+- New abilities emerge
+
+There are THREE mutation types:
+1. Origin Mutations (thematic, identity-defining)
+2. Adaptive Mutations (reactive, survival-driven)
+3. Scar Mutations (earned through injury and hardship)
+
+Mutations are shown in Self Appraisal with:
+- Description
+- Linked ability
+- Ability explanation
+
+============================================================
+ABILITIES
+============================================================
+
+Abilities are narrative tools, not buttons.
+
+Examples:
+- ambush: Attacks from concealment
+- rend: Tearing, slicing attacks
+- terror: Induces fear and panic
+- regenerate: Wounds close unnaturally
+- omen: Signals inevitable danger
+
+Abilities:
+- Appear automatically
+- Are reinforced by mutations
+- Are always explained in Self Appraisal
+
+============================================================
+SELF APPRAISAL (STORY CARD)
+============================================================
+
+A Story Card titled "Self Appraisal" updates automatically.
+
+It contains:
+- Origin
+- Evolution Line
+- Rank & Level
+- XP progress
+- Abilities with descriptions
+- All mutations with ability links
+- Humanoid drift status
+- Active nemeses
+
+You NEVER need to manage this manually.
+
+============================================================
+TIME SYSTEM & COMMANDS
+============================================================
+
+Time advances automatically every few turns.
+
+Time affects:
+- Narrative tone
+- Hunter behavior
+- Blood moon events
+- Seasonal evolution bias
+
+You may ask for the time IN CHARACTER.
+
+Valid time commands include:
+- what time is it
+- check the time
+- sense the time
+- feel the hour
+- mark the passing
+- how late is it
+- how early is it
+- what hour is it
+- what watch is it
+- listen to the world
+- listen to the dark
+- listen to the wind
+
+At night:
+- Time becomes instinctual, not numerical
+- Predatory language replaces clocks
+
+============================================================
+BLOOD MOONS & OMENS
+============================================================
+
+Blood moons occur rarely at night.
+
+Effects:
+- Heightened aggression
+- Omen-heavy narration
+- Stronger instinctual pressure
+- Nemesis personality reactions
+
+Different nemesis personalities react differently to blood moons.
+
+============================================================
+SEASONS
+============================================================
+
+The world cycles through four seasons:
+Spring, Summer, Autumn, Winter
+
+Seasonal effects:
+- Winter favors scar mutations and endurance
+- Summer favors adaptive mutations and growth
+- Autumn balances preparation and decay
+- Spring favors renewal and adaptation
+
+Hunters also change tactics by season.
+
+============================================================
+NEMESIS & HUNTERS
+============================================================
+
+Nemeses are recurring hunters created when enemies escape.
+
+They have:
+- Names
+- Titles
+- Personalities
+- Tactical approaches
+
+Nemesis escalation tiers:
+Tier I – Lone Hunter
+Tier II – Coordinated Pursuit
+Tier III – Organized Hunt
+
+Hunters respond to:
+- Time of day
+- Seasons
+- Blood moons
+- Your evolution path
+
+============================================================
+CREATING A PLAYER NEMESIS
+============================================================
+
+You may manually create a nemesis IN CHARACTER.
+
+Commands:
+nemesis name: Valcerin
+nemesis personality: methodical
+
+Valid personalities:
+relentless
+methodical
+vengeful
+zealous
+pragmatic
+
+Player-created nemeses fully participate in:
+- Seasonal behavior
+- Blood moon reactions
+- Counter-adaptations
+
+============================================================
+HUNTER COUNTER-ADAPTATIONS
+============================================================
+
+As you evolve, hunters adapt narratively.
+
+Examples:
+- Targeting old scars
+- Deploying wards against Demon Lords
+- Using siege tools against Titans
+
+These are narrative pressures only.
+
+============================================================
+HUMANOID DRIFT
+============================================================
+
+Repeated humanoid actions cause drift:
+- Speaking
+- Negotiating
+- Protecting
+- Sparing
+
+As drift increases, you may gain:
+- Speech
+- Disguise
+- Rulership
+
+Excessive brutality can reverse drift.
+
+============================================================
+ASCENSION
+============================================================
+
+At Rank SS, you may ascend.
+
+Choices:
+- demon lord → dominion, influence, fear
+- titan → mass, inevitability, endurance
+- refuse → remain unaligned
+
+Ascension permanently alters:
+- Time perception
+- Hunter behavior
+- World reaction
+
+============================================================
+IMPORTANT NOTES
+============================================================
+
+- Do not try to min-max. The engine is narrative-first.
+- Let the AI describe consequences.
+- Do not invent mechanics.
+- Trust the Story Cards.
+
+============================================================
+TROUBLESHOOTING
+============================================================
+
+If the engine does not respond:
+- Ensure ALL script parts are pasted in order
+- Ensure Story Cards are enabled
+- Ensure modifier saved successfully
+
+InnerSelf compatibility:
+- Fully supported
+- No configuration required
+
+============================================================
+END OF README
+============================================================
