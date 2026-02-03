@@ -1,0 +1,72 @@
+const modifier = (text) => {
+  state.storyEngine.turnCounter++;
+
+  if (state.storyEngine.turnCounter % 5 === 0) {
+    advanceTime(10);
+  }
+
+  const action = parseAction(text);
+
+  switch (action) {
+    case "TIME_CHECK":
+      state.storyEngine.forceTimeReadout = true;
+      break;
+
+    case "WAIT":
+      advanceTime(30);
+      break;
+
+    case "SLEEP":
+      advanceTime(480);
+      break;
+
+    case "TRAVEL":
+      state.storyEngine.travelMode = "RoadTrip";
+      state.storyEngine.environmentType = "Wilderness";
+      break;
+
+    case "SPACE":
+      state.storyEngine.travelMode = "SpaceTravel";
+      state.storyEngine.environmentType = "Space";
+      break;
+
+    case "DIMENSION":
+      state.storyEngine.travelMode = "Dimensional";
+      state.storyEngine.environmentType = "Otherworld";
+      break;
+
+    case "AGGRESSIVE":
+      escalate();
+      affectNPC("Jared Lore","AGGRESSIVE");
+      break;
+
+    case "KIND":
+      affectNPC("Jared Lore","KIND");
+      break;
+
+    case "INTIMATE":
+      affectNPC("Jared Lore","INTIMATE");
+      break;
+
+    case "DETAIL_UP":
+      state.storyEngine.responseStyle = "Novel";
+      break;
+
+    case "DETAIL_DOWN":
+      state.storyEngine.responseStyle = "Short";
+      break;
+  }
+
+  if (text.toLowerCase().includes("a stranger") ||
+      text.toLowerCase().includes("someone nearby")) {
+    generateNPC();
+  }
+
+  if (typeof InnerSelfInput === "function") {
+    text = InnerSelfInput(text);
+  }
+
+  return { text };
+};
+
+modifier(text);

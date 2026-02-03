@@ -1,0 +1,50 @@
+const modifier = (text, stop) => {
+  let context = `
+WORLD:
+Environment: ${state.storyEngine.environmentType}
+Travel Mode: ${state.storyEngine.travelMode}
+
+TIME:
+${state.storyEngine.time.hour}:${String(state.storyEngine.time.minute).padStart(2,"0")}
+Day ${state.storyEngine.time.day}, ${MONTHS[state.storyEngine.time.monthIndex]} ${state.storyEngine.time.year}
+Season: ${state.storyEngine.time.season}
+Event: ${state.storyEngine.time.calendarEvent}
+
+RESPONSE STYLE:
+${state.storyEngine.responseStyle}
+
+CHARACTERS PRESENT:
+`;
+
+  for (const [name,c] of Object.entries(state.storyEngine.characters)) {
+    context += `
+${name} (${c.role}, ${c.race})
+Personality: ${(c.personality || []).join(", ")}
+Emotion: ${c.emotion}
+Mannerisms: ${(c.mannerisms || []).join(", ")}
+`;
+  }
+
+  if (state.storyEngine.forceTimeReadout) {
+    context += `
+--- TIME CHECK ---
+The current time is ${state.storyEngine.time.hour}:${String(state.storyEngine.time.minute).padStart(2,"0")} on Day ${state.storyEngine.time.day} of ${MONTHS[state.storyEngine.time.monthIndex]}.
+`;
+    state.storyEngine.forceTimeReadout = false;
+  }
+
+  context += `
+ESCALATION: ${state.storyEngine.escalation}/5
+---
+`;
+
+  text = context + text;
+
+  if (typeof InnerSelfContext === "function") {
+    [text, stop] = InnerSelfContext(text, stop);
+  }
+
+  return { text, stop };
+};
+
+modifier(text, stop);
