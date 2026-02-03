@@ -1,0 +1,954 @@
+//// =====================================================
+// MONSTER ASCENSION ENGINE v3.0 (COMPLETE + UPDATED)
+// AI DUNGEON – READY TO PASTE
+// =====================================================
+
+// ================= MODULE TOGGLES =================
+const MODULES = {
+  ORIGIN_EVOLUTION: true,
+  ADAPTIVE_EVOLUTION: true,
+  SCAR_SYSTEM: true,
+  HUMANOID_DRIFT: true,
+  HUMANOID_DECAY: true,
+  NEMESIS_SYSTEM: true,
+  SIZE_SYSTEM: true,
+  EVOLUTION_LINES: true,
+  DEMON_LORD_SYSTEM: true,
+  TITAN_SYSTEM: true,
+  STORY_CARDS: true
+};
+
+// ================= INNER SELF =================
+if (typeof InnerSelf === "function") {
+  InnerSelf("input");
+}
+
+// ================= CORE HELPERS =================
+function rand(a){ return a[Math.floor(Math.random()*a.length)]; }
+
+// ================= STORY CARD HELPERS =================
+function ensureStoryIndex(){
+  if(!state.memory) state.memory = {};
+  if(!state.memory.storyIndex) state.memory.storyIndex = {};
+}
+
+function upsertCard({title, type, keys, entry, description}) {
+  if (!Array.isArray(storyCards)) return;
+
+  let card = storyCards.find(c => c.title === title);
+
+  if (!card) {
+    storyCards.push({
+      title,
+      type,
+      keys,
+      entry,
+      description
+    });
+  } else {
+    card.type = type;
+    card.keys = keys;
+    card.entry = entry;
+    card.description = description;
+  }
+}
+
+function upsertStoryCard(key, entry, type, name){
+  if(!MODULES.STORY_CARDS) return;
+  ensureStoryIndex();
+
+  let idx = state.memory.storyIndex[key];
+
+  if(typeof idx === "number" && storyCards[idx] && storyCards[idx].key === key){
+    updateStoryCard(idx, key, entry, type, name, "");
+    return;
+  }
+
+  for(let i=0;i<storyCards.length;i++){
+    if(storyCards[i].key === key){
+      state.memory.storyIndex[key] = i;
+      updateStoryCard(i, key, entry, type, name, "");
+      return;
+    }
+  }
+
+  const newIndex = addStoryCard(key, entry, type, name, "", {returnCard:true});
+  state.memory.storyIndex[key] = newIndex;
+}
+
+// ================= RANKS =================
+const RANKS = ["E","D","C","B","A","S","SS","SSS"];
+function rankValue(r){ return RANKS.indexOf(r); }
+
+function monsterRank(l){
+  if(l>=100) return "SSS";
+  if(l>=80) return "SS";
+  if(l>=60) return "S";
+  if(l>=45) return "A";
+  if(l>=30) return "B";
+  if(l>=15) return "C";
+  if(l>=5) return "D";
+  return "E";
+}
+
+function evolutionTier(rank){ return Math.floor(rankValue(rank)/2)+1; }
+function maxMutations(rank){ return evolutionTier(rank)*4; }
+
+// ================= SIZE =================
+const SIZE_DESCRIPTORS = [
+  "roughly human-sized, its presence unsettlingly dominant",
+  "larger than a human, with a heavy, bestial bulk",
+  "towering over buildings, its mass reshaping the surroundings"
+];
+
+function baseSizeByRank(rank){
+  let r = rankValue(rank);
+  if(r<=2) return 0;
+  if(r<=4) return 1;
+  return 2;
+}
+
+// ================= ABILITY KEYWORDS =================
+const ABILITY_KEYWORDS = {
+  rend:["cleave","tear","rip"],
+  crush:["smash","pulverize"],
+  pounce:["leap","spring"],
+  ambush:["hide","strike first"],
+  evade:["dodge","slip aside"],
+  trample:["overrun","stampede"],
+  grapple:["seize","drag"],
+  maul:["savage","rip apart"],
+  brace:["withstand","endure"],
+  batter:["pummel","wear down"],
+  terror:["fear","panic"],
+  stun:["freeze","lock up"],
+  phase:["intangible","pass through"],
+  disrupt:["scatter","break"],
+  compulsion:["drawn","cannot resist"],
+  hallucinate:["visions","false shapes"],
+  omen:["foreboding","inevitable"],
+  flame_breath:["fire","flame"],
+  venom_bite:["venom","poison"],
+  acid_spray:["acid","corrode"],
+  spore_cloud:["spores","choking"],
+  regenerate:["heal","regrow"],
+  track:["hunt","follow"],
+  resist:["shrug off","resist"]
+};
+
+// ================= ORIGINS =================
+const ORIGINS = [
+  "Wolf","Black Hound","Ghoul","Barrow Revenant","Stone Golem",
+  "Stonebound Warden","Ent","Wraith","Serpent","Large Spider",
+  "Chimera","Skin-Stealer","Fey Abomination","Drake","Ash Drake",
+  "Demon","Night Warden","Bog Horror","Plague Host","Deep Wyrm"
+];
+
+// ================= ORIGIN MUTATIONS =================
+const ORIGIN_MUTATIONS = {
+// ==================== WOLF ====================
+"Wolf":[
+  {k:"alpha_scent",d:"a dominant predator scent",a:"intimidate"},
+  {k:"lupine_legs",d:"digitigrade legs built for pursuit",a:"pounce"},
+  {k:"pack_howl",d:"howls that coordinate unseen allies",a:"disrupt"},
+  {k:"moon_fur",d:"fur that reacts to moonlight",a:"regenerate"},
+  {k:"predator_focus",d:"eyes locked forward on prey",a:"ambush"},
+  {k:"iron_jaws",d:"a bite that refuses to release",a:"grapple"},
+  {k:"blood_trail",d:"scent sharpened by fresh wounds",a:"track"},
+  {k:"feral_endurance",d:"lungs and muscles ignore fatigue",a:"brace"},
+  {k:"territorial_fury",d:"rage when ground is challenged",a:"maul"},
+  {k:"pack_memory",d:"instinctive coordination memory",a:"omen"}
+],
+
+// ==================== BLACK HOUND ====================
+"Black Hound":[
+  {k:"shadow_fur",d:"fur absorbs surrounding light",a:"ambush"},
+  {k:"gallows_chain",d:"ethereal chains drag behind it",a:"grapple"},
+  {k:"judgement_howl",d:"a condemning spectral howl",a:"terror"},
+  {k:"grave_stride",d:"footfalls echo like a sentence passed",a:"omen"},
+  {k:"relentless_pursuit",d:"prey cannot escape once marked",a:"track"},
+  {k:"death_sense",d:"awareness of imminent demise",a:"omen"},
+  {k:"noose_bite",d:"jaws close like a tightening loop",a:"grapple"},
+  {k:"spectral_bulk",d:"half-real oppressive mass",a:"brace"},
+  {k:"funeral_mantle",d:"cold presence smothers courage",a:"terror"},
+  {k:"afterlife_hunger",d:"feeds on fear of death",a:"blood_boiling"}
+],
+
+// ==================== GHOUL ====================
+"Ghoul":[
+  {k:"corpse_hunger",d:"a jaw built for feeding",a:"drain"},
+  {k:"rotting_hide",d:"skin sloughs but still moves",a:"resist"},
+  {k:"grave_stench",d:"stench of old graves",a:"terror"},
+  {k:"death_resilience",d:"flesh ignores pain",a:"brace"},
+  {k:"night_scuttle",d:"unnatural nocturnal movement",a:"ambush"},
+  {k:"carrion_bloat",d:"swollen decay-fed mass",a:"trample"},
+  {k:"bone_hooks",d:"protruding bone spurs",a:"rend"},
+  {k:"cold_flesh",d:"unnaturally chilled skin",a:"stun"},
+  {k:"grave_whispers",d:"murmurs of the dead linger",a:"hallucinate"},
+  {k:"death_spasm",d:"violent motion when injured",a:"batter"}
+],
+
+// ==================== BARROW REVENANT ====================
+"Barrow Revenant":[
+  {k:"oathbound_frame",d:"body animated by broken vows",a:"brace"},
+  {k:"rusted_arms",d:"ancient weapons fused to bone",a:"rend"},
+  {k:"battle_memory",d:"instinctive battlefield awareness",a:"omen"},
+  {k:"undying_march",d:"movement that never tires",a:"trample"},
+  {k:"funeral_plate",d:"burial armor hardened by time",a:"resist"},
+  {k:"grudge_drive",d:"rage sustained by duty unfulfilled",a:"maul"},
+  {k:"grave_command",d:"presence recalls ancient ranks",a:"disrupt"},
+  {k:"deathless_sinew",d:"muscle animated past decay",a:"brace"},
+  {k:"tomb_echo",d:"old war cries bleed through",a:"terror"},
+  {k:"final_stand",d:"cannot retreat once engaged",a:"omen"}
+],
+
+// ==================== STONE GOLEM ====================
+"Stone Golem":[
+  {k:"granite_frame",d:"a body carved from stone",a:"crush"},
+  {k:"rune_cracks",d:"glowing runes in fractured stone",a:"channel"},
+  {k:"immovable_core",d:"a core that resists force",a:"brace"},
+  {k:"earth_weight",d:"mass presses the ground",a:"stagger"},
+  {k:"weathered_form",d:"erosion shaped by time",a:"resist"},
+  {k:"obsidian_edges",d:"razor volcanic glass growths",a:"rend"},
+  {k:"seismic_step",d:"each step vibrates ground",a:"trample"},
+  {k:"runic_feedback",d:"stored force released violently",a:"batter"},
+  {k:"stone_memory",d:"ancient impressions linger",a:"omen"},
+  {k:"faulted_core",d:"cracks that never close",a:"brace"}
+],
+
+// ==================== STONEBOUND WARDEN ====================
+"Stonebound Warden":[
+  {k:"colossal_frame",d:"towering fused rock body",a:"crush"},
+  {k:"mountain_stride",d:"steps quake the land",a:"trample"},
+  {k:"bedrock_hide",d:"layers of living stone",a:"resist"},
+  {k:"uplifted_mass",d:"sheer size warps perspective",a:"omen"},
+  {k:"stoneheart",d:"a core heavier than steel",a:"brace"},
+  {k:"landbreaker",d:"blows fracture terrain",a:"batter"},
+  {k:"ancient_weight",d:"age presses through motion",a:"terror"},
+  {k:"faultline_grip",d:"grasp like shifting plates",a:"grapple"},
+  {k:"enduring_form",d:"damage feels distant",a:"resist"},
+  {k:"horizon_bulk",d:"presence dominates skyline",a:"omen"}
+],
+
+// ==================== ENT ====================
+"Ent":[
+  {k:"bark_hide",d:"thick bark-like skin",a:"resist"},
+  {k:"rooted_stride",d:"slow but unyielding gait",a:"brace"},
+  {k:"verdant_regrowth",d:"rapid plant regeneration",a:"regenerate"},
+  {k:"branch_limbs",d:"heavy branch-like limbs",a:"crush"},
+  {k:"ancient_presence",d:"the weight of age",a:"terror"},
+  {k:"thorn_growth",d:"spines erupt from bark",a:"rend"},
+  {k:"spore_release",d:"clouds of pollen and mold",a:"spore_cloud"},
+  {k:"forest_wrath",d:"violent territorial reaction",a:"trample"},
+  {k:"root_snare",d:"ground entangles foes",a:"grapple"},
+  {k:"seasonal_omen",d:"cycles foretell violence",a:"omen"}
+],
+
+// ==================== WRAITH ====================
+"Wraith":[
+  {k:"spectral_form",d:"body half out of reality",a:"phase"},
+  {k:"cold_aura",d:"air frosts in its presence",a:"terror"},
+  {k:"silent_passage",d:"movement without sound",a:"ambush"},
+  {k:"tattered_veil",d:"edges flicker in and out",a:"evade"},
+  {k:"death_glow",d:"pale light leaks from within",a:"drain"},
+  {k:"grasping_chill",d:"touch leeches warmth",a:"stun"},
+  {k:"haunting_echo",d:"sounds repeat unnaturally",a:"hallucinate"},
+  {k:"grief_weight",d:"presence presses sorrow",a:"compulsion"},
+  {k:"veil_tremor",d:"reality ripples nearby",a:"disrupt"},
+  {k:"final_lament",d:"echo of its own death",a:"omen"}
+],
+
+// ==================== SERPENT ====================
+"Serpent":[
+  {k:"venom_fangs",d:"elongated venomous fangs",a:"venom_bite"},
+  {k:"coiling_body",d:"powerful constricting coils",a:"grapple"},
+  {k:"heat_pits",d:"sensors read warmth",a:"track"},
+  {k:"shed_skin",d:"periodic shedding of flesh",a:"adapt"},
+  {k:"hypnotic_gaze",d:"eyes hold attention",a:"stun"},
+  {k:"crushing_spirals",d:"tightening lethal coils",a:"grapple"},
+  {k:"venom_surge",d:"toxin floods the system",a:"blood_boiling"},
+  {k:"glittering_scales",d:"light-reflective armor",a:"resist"},
+  {k:"silent_slither",d:"motion barely perceptible",a:"ambush"},
+  {k:"prophetic_hiss",d:"anticipates inevitable strikes",a:"omen"}
+],
+
+// ==================== LARGE SPIDER ====================
+"Large Spider":[
+  {k:"web_glands",d:"glands produce thick webbing",a:"grapple"},
+  {k:"many_eyes",d:"clusters of reflective eyes",a:"observe"},
+  {k:"wall_cling",d:"limbs grip sheer surfaces",a:"evade"},
+  {k:"venom_sacs",d:"swollen venom reservoirs",a:"venom_bite"},
+  {k:"stillness",d:"unnatural motionless patience",a:"ambush"},
+  {k:"silk_armor",d:"layered web plating",a:"resist"},
+  {k:"skitter_burst",d:"explosive sudden movement",a:"pounce"},
+  {k:"web_maze",d:"terrain choked with silk",a:"disrupt"},
+  {k:"brood_memory",d:"territorial instinct",a:"omen"},
+  {k:"venom_bloom",d:"airborne toxin threads",a:"spore_cloud"}
+],
+
+// ==================== CHIMERA ====================
+"Chimera":[
+  {k:"hybrid_limbs",d:"mismatched limbs from many beasts",a:"batter"},
+  {k:"split_voice",d:"multiple throats speak at once",a:"terror"},
+  {k:"patchwork_hide",d:"fur scale and skin stitched together",a:"resist"},
+  {k:"unstable_form",d:"body never fully settles",a:"adapt"},
+  {k:"conflicting_gait",d:"movement defies anatomy",a:"evade"},
+  {k:"extra_joints",d:"limbs bend the wrong way",a:"grapple"},
+  {k:"shared_organs",d:"redundant vital structures",a:"brace"},
+  {k:"violent_recoil",d:"erratic counter-movements",a:"disrupt"},
+  {k:"bestial_fusion",d:"traits bleed together",a:"maul"},
+  {k:"echoing_instincts",d:"overlapping survival urges",a:"omen"}
+],
+
+// ==================== SKIN-STEALER ====================
+"Skin-Stealer":[
+  {k:"borrowed_hide",d:"stolen skin stretched over muscle",a:"ambush"},
+  {k:"imperfect_mimicry",d:"expressions slightly delayed",a:"hallucinate"},
+  {k:"seamless_mask",d:"faces worn like garments",a:"disrupt"},
+  {k:"bone_shift",d:"skeleton reshapes under flesh",a:"adapt"},
+  {k:"identity_hunger",d:"drawn to living forms",a:"track"},
+  {k:"false_voice",d:"speech almost convincing",a:"compulsion"},
+  {k:"muscle_memory",d:"remembers stolen movements",a:"evade"},
+  {k:"hidden_claws",d:"weapons concealed beneath skin",a:"rend"},
+  {k:"stitched_frame",d:"scar lines trace the body",a:"resist"},
+  {k:"borrowed_fate",d:"knows how victims died",a:"omen"}
+],
+
+// ==================== FEY ABOMINATION ====================
+"Fey Abomination":[
+  {k:"wrong_glamour",d:"beauty twisted into discomfort",a:"hallucinate"},
+  {k:"thorned_grace",d:"elegance edged with pain",a:"rend"},
+  {k:"courtless_presence",d:"no place in any fae order",a:"terror"},
+  {k:"reality_warp",d:"space bends around its form",a:"disrupt"},
+  {k:"luring_motion",d:"movement draws unwilling attention",a:"compulsion"},
+  {k:"season_bleed",d:"weather reacts unnaturally",a:"omen"},
+  {k:"petal_scars",d:"wounds bloom like flowers",a:"regenerate"},
+  {k:"twilight_hide",d:"flesh half in dream",a:"phase"},
+  {k:"iron_aversion",d:"recoils from cold metal",a:"omen"},
+  {k:"broken_bargain",d:"contracts echo in its wake",a:"omen"}
+],
+
+// ==================== DRAKE ====================
+"Drake":[
+  {k:"smoldering_throat",d:"a throat warm with embers",a:"flame_breath"},
+  {k:"scaled_hide",d:"overlapping hardened scales",a:"resist"},
+  {k:"wing_spars",d:"undeveloped wing structures",a:"pounce"},
+  {k:"dominant_roar",d:"a roar that asserts control",a:"intimidate"},
+  {k:"heat_core",d:"a burning internal core",a:"overheat"},
+  {k:"molten_spit",d:"liquid fire droplets",a:"acid_spray"},
+  {k:"cinder_cloud",d:"ash-laden exhalation",a:"spore_cloud"},
+  {k:"draconic_fury",d:"unrestrained aggression",a:"maul"},
+  {k:"obsidian_scales",d:"fractured volcanic plating",a:"brace"},
+  {k:"ancient_dread",d:"instinctive fear response",a:"omen"}
+],
+
+// ==================== ASH DRAKE ====================
+"Ash Drake":[
+  {k:"cinder_hide",d:"ash-blackened scales",a:"resist"},
+  {k:"smoke_breath",d:"choking ash clouds",a:"spore_cloud"},
+  {k:"ember_heart",d:"heat burns without flame",a:"blood_boiling"},
+  {k:"charred_wings",d:"wing stubs trail embers",a:"pounce"},
+  {k:"volcanic_spit",d:"caustic molten slag",a:"acid_spray"},
+  {k:"ashen_aura",d:"air tastes of smoke",a:"terror"},
+  {k:"eruption_surge",d:"violent explosive movement",a:"batter"},
+  {k:"cinder_regrowth",d:"flesh reforms from ash",a:"regenerate"},
+  {k:"smothering_heat",d:"heat drains breath",a:"stun"},
+  {k:"eruption_omen",d:"pressure builds before violence",a:"omen"}
+],
+
+// ==================== DEMON ====================
+"Demon":[
+  {k:"hellfire_veins",d:"veins glow with infernal heat",a:"flame_breath"},
+  {k:"corrupt_aura",d:"aura warps mortal will",a:"terror"},
+  {k:"barbed_form",d:"hooks and spines line the body",a:"rend"},
+  {k:"infernal_gaze",d:"eyes judge and condemn",a:"stun"},
+  {k:"sin_resonance",d:"reacts to mortal vice",a:"track"},
+  {k:"blood_contract",d:"violence fuels power",a:"blood_boiling"},
+  {k:"reality_scorch",d:"air distorts around it",a:"corrosive_aura"},
+  {k:"dominion_mark",d:"claims territory through fear",a:"compulsion"},
+  {k:"abyssal_feedback",d:"pain returns amplified",a:"batter"},
+  {k:"prophetic_malice",d:"knows when ruin comes",a:"omen"}
+],
+
+// ==================== NIGHT WARDEN ====================
+"Night Warden":[
+  {k:"dusk_armor",d:"armor forged of shadowed light",a:"resist"},
+  {k:"silent_watch",d:"movement without presence",a:"ambush"},
+  {k:"vigil_mark",d:"symbols track trespassers",a:"track"},
+  {k:"nocturne_step",d:"steps swallowed by darkness",a:"evade"},
+  {k:"moonbound_blade",d:"weapons drink moonlight",a:"rend"},
+  {k:"oath_of_night",d:"will hardened by duty",a:"brace"},
+  {k:"shadow_bind",d:"darkness restrains foes",a:"grapple"},
+  {k:"gloom_command",d:"presence enforces silence",a:"disrupt"},
+  {k:"starless_gaze",d:"eyes reflect no light",a:"terror"},
+  {k:"endless_watch",d:"never sleeps never rests",a:"omen"}
+],
+
+// ==================== BOG HORROR ====================
+"Bog Horror":[
+  {k:"mire_flesh",d:"waterlogged grasping flesh",a:"grapple"},
+  {k:"sinking_bulk",d:"mass drags foes downward",a:"trample"},
+  {k:"rot_gas",d:"bubbles of noxious air",a:"spore_cloud"},
+  {k:"leech_hide",d:"skin crawling with parasites",a:"drain"},
+  {k:"marsh_stride",d:"moves freely through muck",a:"evade"},
+  {k:"bog_tendons",d:"stretching sinew and reed",a:"grapple"},
+  {k:"drowned_memory",d:"echoes of lost victims",a:"hallucinate"},
+  {k:"swamp_stench",d:"air thick with decay",a:"terror"},
+  {k:"engulfing_mire",d:"ground consumes the unwary",a:"disrupt"},
+  {k:"sodden_omen",d:"stillness before sinking death",a:"omen"}
+],
+
+// ==================== PLAGUE HOST ====================
+"Plague Host":[
+  {k:"fever_blood",d:"boiling infected blood",a:"blood_boiling"},
+  {k:"weeping_sores",d:"oozing lesions spread sickness",a:"spore_cloud"},
+  {k:"pestilent_aura",d:"disease hangs in the air",a:"terror"},
+  {k:"rotting_lungs",d:"coughing clouds of infection",a:"stun"},
+  {k:"carrier_stride",d:"movement spreads contagion",a:"disrupt"},
+  {k:"blight_hide",d:"flesh resists further decay",a:"resist"},
+  {k:"epidemic_drive",d:"seeks dense populations",a:"track"},
+  {k:"septic_burst",d:"violent rupture of infection",a:"batter"},
+  {k:"contagion_memory",d:"remembers every outbreak",a:"omen"},
+  {k:"lingering_spread",d:"sickness persists after passing",a:"omen"}
+],
+
+// ==================== DEEP WYRM ====================
+"Deep Wyrm":[
+  {k:"burrowing_mass",d:"vast coils beneath the earth",a:"trample"},
+  {k:"stone_grind",d:"movement pulverizes bedrock",a:"crush"},
+  {k:"subterranean_sense",d:"feels surface vibrations",a:"track"},
+  {k:"pressure_hide",d:"flesh hardened by depth",a:"resist"},
+  {k:"tectonic_coil",d:"body shifts like plates",a:"grapple"},
+  {k:"earth_breath",d:"dust and gas exhalation",a:"spore_cloud"},
+  {k:"collapse_surge",d:"tunnels implode violently",a:"batter"},
+  {k:"underworld_heat",d:"geothermal warmth",a:"blood_boiling"},
+  {k:"endless_depth",d:"scale impossible to gauge",a:"omen"},
+  {k:"buried_prophecy",d:"knows when cities will fall",a:"omen"}
+]
+};
+
+// ================= ADAPTIVE MUTATIONS =================
+const ADAPTIVE_MUTATIONS = [
+  {k:"razor_limbs",d:"limbs edge themselves into crude blades",a:"rend"},
+  {k:"hammer_fists",d:"forearms thicken for crushing blows",a:"crush"},
+  {k:"reinforced_frame",d:"bone or structure thickens unnaturally",a:"resist"},
+  {k:"shadow_veil",d:"darkness clings unnaturally close",a:"phase"},
+  {k:"terror_aura",d:"presence presses fear into the air",a:"terror"},
+  {k:"regenerative_flesh",d:"wounds knit at unnatural speed",a:"regenerate"},
+  {k:"predatory_reflexes",d:"movement occurs before thought",a:"evade"},
+  {k:"silent_movement",d:"motion stripped of sound",a:"ambush"},
+  {k:"instinctive_tracking",d:"awareness of fleeing prey",a:"track"},
+  {k:"adaptive_bulk",d:"mass redistributes for impact",a:"trample"},
+  {k:"neural_overdrive",d:"nerves fire too fast",a:"stun"},
+  {k:"pressure_hide",d:"flesh hardens under stress",a:"brace"},
+  {k:"seething_core",d:"energy builds dangerously inside",a:"overheat"},
+  {k:"predator_fixation",d:"tunnel focus locks onto prey",a:"omen"},
+  {k:"violent_feedback",d:"retaliation is baked into movement",a:"batter"},
+  {k:"spine_flares",d:"bone spines erupt during stress",a:"rend"},
+  {k:"muscle_coils",d:"muscle fibers twist for explosive force",a:"pounce"},
+  {k:"impact_absorption",d:"force disperses through the body",a:"brace"},
+  {k:"adaptive_camouflage",d:"skin shifts to match surroundings",a:"ambush"},
+  {k:"bio_reservoirs",d:"internal stores fuel recovery",a:"regenerate"}
+];
+
+// ================= SCAR MUTATIONS =================
+const SCAR_MUTATIONS = [
+  {k:"scarred_carapace",d:"deep scars harden into armor",a:"resist"},
+  {k:"ruined_eye",d:"a ruined eye never blinks",a:"observe"},
+  {k:"torn_limb_knots",d:"torn limbs reknit thicker",a:"crush"},
+  {k:"burnt_hide",d:"charred flesh no longer feels heat",a:"resist"},
+  {k:"blood_memory",d:"old wounds guide retaliation",a:"ambush"},
+  {k:"crooked_spine",d:"permanently twisted posture",a:"brace"},
+  {k:"ragged_breath",d:"damaged lungs force violent exhalation",a:"overheat"},
+  {k:"nerve_scars",d:"pain responses dull or invert",a:"stun"},
+  {k:"fracture_lines",d:"cracks never healed correctly",a:"batter"},
+  {k:"phantom_pain",d:"echoes of old injuries linger",a:"omen"},
+  {k:"shattered_guard",d:"broken defenses breed aggression",a:"maul"},
+  {k:"callused_mass",d:"repeated trauma thickens tissue",a:"brace"},
+  {k:"seared_organs",d:"internal burns resist further damage",a:"resist"},
+  {k:"twisted_reflex",d:"damage triggers violent reflex",a:"batter"},
+  {k:"death_hardened",d:"survival through catastrophe reshapes flesh",a:"omen"}
+];
+
+// ================= NEMESIS PERSONALITIES =================
+const NEMESIS_PERSONALITIES = [
+  {k:"relentless",name:"Relentless",desc:"Pursues without pause, never disengages once contact is made.",pressure:"Travel becomes dangerous. Rest is interrupted."},
+  {k:"methodical",name:"Methodical",desc:"Studies patterns, learns habits, strikes at moments of weakness.",pressure:"Safe routes disappear. Predictability becomes lethal."},
+  {k:"vengeful",name:"Vengeful",desc:"Fueled by personal loss, ignores risk for retribution.",pressure:"Collateral damage increases. Civilians suffer."},
+  {k:"zealous",name:"Zealous",desc:"Believes the hunt is righteous.",pressure:"Holy wards appear. Sanctified ground resists you."},
+  {k:"pragmatic",name:"Pragmatic",desc:"Withdraws when losing, returns prepared.",pressure:"Traps and reinforcements appear."}
+];
+
+// ================= NEMESIS TACTICS =================
+const NEMESIS_TACTICS = [
+  {k:"ambush",desc:"Strikes from concealment.",effect:"Encounters begin with disadvantage."},
+  {k:"attrition",desc:"Harasses repeatedly.",effect:"Resources drain over time."},
+  {k:"containment",desc:"Uses traps and chokepoints.",effect:"Escape options narrow."},
+  {k:"isolation",desc:"Separates allies.",effect:"Assistance unreliable."},
+  {k:"exposure",desc:"Reveals your presence.",effect:"Bounties rise."}
+];
+
+function nemesisTier(count){
+  if(count === 1) return "Tier I - A Lone Hunter";
+  if(count === 2) return "Tier II - Coordinated Pursuit";
+  if(count === 3) return "Tier III - Organized Hunt";
+  return "Dormant";
+}
+
+// ================= NEMESIS HELPERS =================
+const NEMESIS_NAMES = [
+  "Valcerin","Harrow","Iscath","Mournwatch","Kell","Rathos","Black Pike"
+];
+
+const NEMESIS_TITLES = [
+  "Hunter","Inquisitor","Stalker","Warden","Purger","Justicar"
+];
+
+function createNemesis(){
+  return {
+    name: rand(NEMESIS_NAMES),
+    title: rand(NEMESIS_TITLES),
+    personality: rand(NEMESIS_PERSONALITIES),
+    tactic: rand(NEMESIS_TACTICS),
+    damaged: true
+  };
+}
+
+// ---------- PLAYER-COMMANDED NEMESIS ----------
+function addPlayerNemesis(name, personalityKey){
+  const personality = NEMESIS_PERSONALITIES.find(
+    p => p.k.toLowerCase() === personalityKey.toLowerCase()
+  );
+  if (!personality) return null;
+
+  return {
+    name,
+    title: rand(NEMESIS_TITLES),
+    personality,
+    tactic: rand(NEMESIS_TACTICS),
+    damaged: false
+  };
+}
+
+function buildNemesisStoryCard(m){
+  if(!MODULES.NEMESIS_SYSTEM || !m.nemesisHunters.length) return;
+
+  const tier = nemesisTier(m.nemesisHunters.length);
+
+  const hunters = m.nemesisHunters.map(n =>
+`${n.name}, ${n.title}
+Personality: ${n.personality.name}
+Tactic: ${n.tactic.desc}`
+  ).join("\n\n");
+
+  upsertCard({
+    title: "Nemesis Escalation",
+    type: "World",
+    keys: "Nemesis, Hunters, Threat",
+    entry: `Escalation Level: ${tier}`,
+    description: hunters
+  });
+}
+
+// ================= SELF APPRAISAL HELPERS =================
+function appraisalSignature(m){
+  return [
+    m.origin,
+    m.evolutionLine,
+    m.rank,
+    m.level,
+    m.xp,
+    m.abilities.length,
+    m.originMutations.length,
+    m.adaptiveMutations.length,
+    m.scarMutations.length,
+    m.humanoidDrift.length,
+    m.nemesisHunters.length
+  ].join("|");
+}
+
+function purgeOldSelfAppraisals(sig){
+  ensureStoryIndex();
+
+  for(let i = storyCards.length - 1; i >= 0; i--){
+    const c = storyCards[i];
+    if(
+      c &&
+      c.key === "SELF_APPRAISAL" &&
+      !c.entry.includes("SIG:" + sig)
+    ){
+      removeStoryCard(i);
+    }
+  }
+  delete state.memory.storyIndex["SELF_APPRAISAL"];
+}
+
+// ================= SELF APPRAISAL STORY CARD =================
+function buildSelfStoryCard(m){
+  const xpNeeded = m.level * 10;
+
+  const text =
+`Origin: ${m.origin || "Unformed"}
+Evolution Line: ${m.evolutionLine}
+Rank: ${m.rank}
+Level: ${m.level}
+XP: ${m.xp} / ${xpNeeded}
+
+Abilities:
+${m.abilities.length ? "- " + m.abilities.join("\n- ") : "None"}
+
+Origin Mutations:
+${m.originMutations.length ? m.originMutations.map(x=>"- "+x.d).join("\n") : "None"}
+
+Adaptive Mutations:
+${m.adaptiveMutations.length ? m.adaptiveMutations.map(x=>"- "+x.d).join("\n") : "None"}
+
+Scar Mutations:
+${m.scarMutations.length ? m.scarMutations.map(x=>"- "+x.d).join("\n") : "None"}
+
+Humanoid Drift:
+${m.humanoidDrift.length ? m.humanoidDrift.map(x=>"- "+x.d).join("\n") : "None"}
+
+Active Nemeses: ${m.nemesisHunters.length}`;
+
+  upsertCard({
+    title: "Self Appraisal",
+    type: "World",
+    keys: "Self, Monster, Status",
+    entry: "A constantly updating assessment of the creature.",
+    description: text
+  });
+}
+
+// ================= TIME SYSTEM HELPERS =================
+const SEASONS = ["Spring","Summer","Autumn","Winter"];
+
+function advanceTimeByThirty(t){
+  t.minute += 30;
+  if(t.minute >= 60){
+    t.minute = 0;
+    t.hour += 1;
+  }
+  if(t.hour >= 24){
+    t.hour = 0;
+    t.day += 1;
+    if(t.day % 30 === 0){
+      t.seasonIndex = (t.seasonIndex + 1) % SEASONS.length;
+    }
+  }
+}
+
+function timeOfDay(h){
+  if(h < 6) return "Night";
+  if(h < 12) return "Morning";
+  if(h < 18) return "Afternoon";
+  return "Evening";
+}
+
+// ================= INIT =================
+function initMonster(){
+  return {
+    origin: null,
+    trueOrigin: null,
+    originLocked: false,
+    awaitingOriginChoice: true,
+
+    level: 1,
+    xp: 0,
+    rank: "E",
+    sizeIndex: 0,
+
+    abilities: [],
+    abilityLastUsed: {},
+
+    originMutations: [],
+    adaptiveMutations: [],
+    scarMutations: [],
+
+    humanoidDrift: [],
+    humanoidLastUsed: 0,
+
+    humanoidCapabilities: {
+      speech: false,
+      disguise: false,
+      rulership: false
+    },
+
+    evolutionLine: "Monster",
+    ascensionLocked: false,
+    awaitingAscensionChoice: false,
+
+    nemesisHunters: [],
+
+    time: {
+      hour: 6,
+      minute: 0,
+      day: 1,
+      seasonIndex: 0,
+      turnCounter: 0
+    }
+  };
+}
+
+// ================= CONTEXT BUILDER =================
+function buildContextDescription(m){
+  let d = [];
+
+  d.push(
+    "The creature is " +
+    SIZE_DESCRIPTORS[m.sizeIndex] +
+    ", a " +
+    (m.evolutionLine !== "Monster" ? m.evolutionLine + " " : "") +
+    m.origin + "."
+  );
+
+  if(m.originMutations.length){
+    d.push(rand(m.originMutations).d + ".");
+  }
+
+  if(m.adaptiveMutations.length && Math.random() < 0.5){
+    d.push(rand(m.adaptiveMutations).d + ".");
+  }
+
+  if(m.scarMutations.length && Math.random() < 0.5){
+    d.push(rand(m.scarMutations).d + ".");
+  }
+
+  return d.join(" ");
+}
+
+// ================= MODIFIER =================
+var modifier = (text) => {
+  const input = (text || "").toLowerCase();
+
+  if(!state.monster){
+    state.monster = initMonster();
+    return { text };
+  }
+
+  const m = state.monster;
+
+  // ---------- ORIGIN SELECTION ----------
+  if (m.awaitingOriginChoice) {
+    const originMatch =
+      text.match(/\[origin:\s*([^\]]+)\]/i) ||
+      text.match(/\b(wolf|black hound|ghoul|barrow revenant|stone golem|stonebound warden|ent|wraith|serpent|large spider|chimera|skin-stealer|fey abomination|drake|ash drake|demon|night warden|bog horror|plague host|deep wyrm)\b/i);
+
+    if (originMatch) {
+      const chosen = originMatch[1] ? originMatch[1].trim() : originMatch[0].trim();
+      const normalized = ORIGINS.find(o => o.toLowerCase() === chosen.toLowerCase());
+
+      if (normalized) {
+        m.origin = normalized;
+        m.trueOrigin = normalized;
+        m.originLocked = true;
+        m.awaitingOriginChoice = false;
+
+        const startAbility = rand(ORIGIN_MUTATIONS[normalized]).a;
+        m.abilities.push(startAbility);
+      }
+    }
+
+    if (m.awaitingOriginChoice) {
+      state.memory.context =
+        "Your form is unshaped and unstable.\n" +
+        "Declare what you are.\n" +
+        "Example: [Origin: Wolf]";
+      return { text };
+    }
+  }
+
+  // ---------- HIDDEN TIME SYSTEM ----------
+  m.time.turnCounter++;
+
+  let previousPhase = timeOfDay(m.time.hour);
+
+  if (m.time.turnCounter >= 5) {
+    m.time.turnCounter = 0;
+    advanceTimeByThirty(m.time);
+  }
+
+  let currentPhase = timeOfDay(m.time.hour);
+
+  // ---------- XP & RANK ----------
+  m.xp += /kill|fight|attack|hunt|destroy/.test(input) ? 6 : 4;
+
+  if(m.xp >= m.level * 10){
+    m.xp -= m.level * 10;
+    m.level++;
+  }
+
+  m.rank = monsterRank(m.level);
+
+  // ---------- HUMANOID DRIFT ----------
+  if (MODULES.HUMANOID_DRIFT) {
+
+    if (
+      /talk|speak|negotiate|bargain|reason|protect|guard|spare|hesitate|refuse|listen/i.test(input) &&
+      Math.random() < 0.35
+    ) {
+      m.humanoidDrift.push({
+        k: "measured_cognition",
+        d: "instinct gives way to deliberate thought"
+      });
+    }
+
+    if (
+      m.awaitingAscensionChoice &&
+      !/demon\s*lord|titan/i.test(input) &&
+      Math.random() < 0.25
+    ) {
+      m.humanoidDrift.push({
+        k: "identity_resistance",
+        d: "the creature resists becoming something vast and inhuman"
+      });
+    }
+
+    if (
+      MODULES.HUMANOID_DECAY &&
+      /slaughter|massacre|devour|rend|rip apart|maul|feast|consume/i.test(input) &&
+      m.humanoidDrift.length &&
+      Math.random() < 0.4
+    ) {
+      m.humanoidDrift.pop();
+    }
+  }
+
+  // ---------- HUMANOID CAPABILITIES ----------
+  if (!m.humanoidCapabilities.speech && m.humanoidDrift.length >= 2)
+    m.humanoidCapabilities.speech = true;
+
+  if (!m.humanoidCapabilities.disguise && m.humanoidDrift.length >= 4)
+    m.humanoidCapabilities.disguise = true;
+
+  if (!m.humanoidCapabilities.rulership && m.humanoidDrift.length >= 6)
+    m.humanoidCapabilities.rulership = true;
+
+  // ---------- SIZE ----------
+  if(MODULES.SIZE_SYSTEM){
+    let base = baseSizeByRank(m.rank);
+    if(m.sizeIndex < base) m.sizeIndex = base;
+  }
+
+  // ---------- ASCENSION ----------
+  if (
+    MODULES.DEMON_LORD_SYSTEM &&
+    MODULES.TITAN_SYSTEM &&
+    m.rank === "SS" &&
+    !m.ascensionLocked
+  ) {
+    m.awaitingAscensionChoice = true;
+  }
+
+  if (m.awaitingAscensionChoice && !m.ascensionLocked) {
+    if (/demon\s*lord/i.test(input)) {
+      m.evolutionLine = "Demon Lord";
+      m.ascensionLocked = true;
+      m.awaitingAscensionChoice = false;
+    }
+    else if (/titan/i.test(input)) {
+      m.evolutionLine = "Titan";
+      m.ascensionLocked = true;
+      m.awaitingAscensionChoice = false;
+    }
+  }
+
+  // ---------- ORIGIN EVOLUTION ----------
+  if(
+    MODULES.ORIGIN_EVOLUTION &&
+    m.originMutations.length < maxMutations(m.rank) &&
+    Math.random() < 0.25
+  ){
+    let pool = ORIGIN_MUTATIONS[m.origin].filter(
+      x => !m.originMutations.some(y => y.k === x.k)
+    );
+    if(pool.length) m.originMutations.push(rand(pool));
+  }
+
+  // ---------- ADAPTIVE EVOLUTION ----------
+  if(
+    MODULES.ADAPTIVE_EVOLUTION &&
+    m.adaptiveMutations.length < maxMutations(m.rank) &&
+    Math.random() < 0.2
+  ){
+    let pool = ADAPTIVE_MUTATIONS.filter(
+      x => !m.adaptiveMutations.some(y => y.k === x.k)
+    );
+    if(pool.length) m.adaptiveMutations.push(rand(pool));
+  }
+
+  // ---------- SCAR SYSTEM ----------
+  if(
+    MODULES.SCAR_SYSTEM &&
+    /wounded|burned|maimed|broken|scarred/.test(input) &&
+    m.scarMutations.length < maxMutations(m.rank)
+  ){
+    let pool = SCAR_MUTATIONS.filter(
+      x => !m.scarMutations.some(y => y.k === x.k)
+    );
+    if(pool.length) m.scarMutations.push(rand(pool));
+  }
+
+  // ---------- PLAYER-COMMANDED NEMESIS ----------
+  const nemName = text.match(/nemesis\s*name:\s*(.+)/i);
+  const nemPers = text.match(/nemesis\s*personality:\s*(\w+)/i);
+
+  if (MODULES.NEMESIS_SYSTEM && nemName && nemPers) {
+    const n = addPlayerNemesis(nemName[1].trim(), nemPers[1].trim());
+    if (n) m.nemesisHunters.push(n);
+  }
+
+  // ---------- AUTOMATIC NEMESIS ----------
+  if(
+    MODULES.NEMESIS_SYSTEM &&
+    /escaped|retreated|survived/.test(input) &&
+    m.nemesisHunters.length < 3
+  ){
+    m.nemesisHunters.push(createNemesis());
+  }
+
+  if(/killed|slain|destroyed/.test(input) && m.nemesisHunters.length){
+    m.nemesisHunters.shift();
+  }
+
+  // ---------- STORY CARDS ----------
+  buildSelfStoryCard(m);
+  buildNemesisStoryCard(m);
+
+  // ---------- CONTEXT ----------
+  state.memory.context =
+    buildContextDescription(m) +
+    " Describe scale, posture, damage, and consequence. Do not invent mechanics.";
+
+  if (previousPhase !== currentPhase) {
+    state.memory.context +=
+      "\n\nThe world subtly shifts as " + currentPhase.toLowerCase() + " settles in.";
+  }
+
+  if (currentPhase === "Night") {
+    state.memory.context +=
+      "\nShadows deepen. Predators grow bolder.";
+  }
+
+  if (m.awaitingAscensionChoice && !m.ascensionLocked) {
+    state.memory.context +=
+      "\n\nYour form strains against its limits.\n" +
+      "Type **demon lord** to ascend through dominion.\n" +
+      "Type **titan** to ascend through mass.\n" +
+      "Or refuse both and continue drifting.";
+  }
+
+  if (m.humanoidCapabilities.speech)
+    state.memory.context += "\n\nYou can speak clearly.";
+
+  if (m.humanoidCapabilities.disguise)
+    state.memory.context += "\nYou can pass among humanoids.";
+
+  if (m.humanoidCapabilities.rulership)
+    state.memory.context += "\nOthers may follow you.";
+
+  return { text };
+};
+
+// Don't modify this part
+modifier(text);
