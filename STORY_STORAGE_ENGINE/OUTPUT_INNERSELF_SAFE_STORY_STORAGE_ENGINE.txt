@@ -1,0 +1,8 @@
+const modifier = (text) => {
+  if (typeof InnerSelfOutput === "function") {
+    return { text: InnerSelfOutput(text) };
+  }
+  return { text };
+};
+
+modifier(text);
