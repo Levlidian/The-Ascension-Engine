@@ -1,0 +1,38 @@
+const modifier = (text) => {
+  const action = parseAction(text);
+
+  switch (action) {
+    case "MOVE":
+      if (text.toLowerCase().includes("nightjar")) {
+        state.storyEngine.currentLocation = "Nightjar Bar";
+      }
+      break;
+
+    case "VIOLENCE":
+      escalate();
+      break;
+
+    case "INTIMACY": {
+      const loc = state.storyEngine.locations[state.storyEngine.currentLocation];
+      if (loc) {
+        loc.mood = "Intimate";
+        loc.state = "Private";
+      }
+      break;
+    }
+
+    case "INVESTIGATION": {
+      const loc = state.storyEngine.locations[state.storyEngine.currentLocation];
+      if (loc) loc.mood = "Watchful";
+      break;
+    }
+  }
+
+  if (typeof InnerSelfInput === "function") {
+    text = InnerSelfInput(text);
+  }
+
+  return { text };
+};
+
+modifier(text);
