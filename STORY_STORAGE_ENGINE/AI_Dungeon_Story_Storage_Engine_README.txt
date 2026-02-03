@@ -283,6 +283,8 @@ When adding InnerSelf to this engine:
 5. DO NOT replace the Output Modifier.
    The Output Modifier included in this engine
    IS REQUIRED for InnerSelf compatibility.
+   Also delete the return and modifer below Lewdleahs instructions in input and context to place other scripts here, story_storage will handle the rest.
+(Images have been included in this folder for visual compare)
 
 Paste the Story Storage Engine as guided by Lewdlead, delete the script below where she says to add other mods here.
 
