@@ -1,0 +1,1285 @@
+// =====================================================
+// JUJUTSU ASCENSION ENGINE v2 — FINAL RESTORED BUILD
+// FULL SCRIPT — PART 1 (PASTE-SAFE, REDECLARATION-SAFE)
+// =====================================================
+
+// ===== SAFETY PATCH: initSorcerer GUARANTEE =====
+if (typeof initSorcerer === "undefined") {
+  function initSorcerer(){
+    Math.random();
+
+    // ---- HEAVENLY RESTRICTION: 10% ----
+    if(Math.random() < 0.10){
+      return {
+        initialized:false,
+        needsReport:true,
+        heavenlyRestriction:true,
+        level:1,
+        xp:0,
+        grade:"Grade 4",
+        physical:{
+          strength:"Superhuman",
+          speed:"Extreme",
+          durability:"Inhuman",
+          perception:"Preternatural"
+        }
+      };
+    }
+
+    const innate = (typeof INNATE_TECHNIQUES !== "undefined" && INNATE_TECHNIQUES.length)
+      ? INNATE_TECHNIQUES[Math.floor(Math.random()*INNATE_TECHNIQUES.length)]
+      : { name:"Fallback Technique", abilities:[{type:"Base", n:"Basic Strike", d:"A simple cursed strike."}] };
+
+    return {
+      initialized:false,
+      needsReport:true,
+      heavenlyRestriction:false,
+      innate,
+      unlockedAbilities:[innate.abilities[0].n],
+      level:1,
+      xp:0,
+      grade:"Grade 4",
+      cursedEnergy:"Steady",
+      domainUnlocked:false,
+      blackFlashCount:0,
+      bloodline: (typeof assignBloodline === "function") ? assignBloodline() : null,
+      vows:[]
+    };
+  }
+}
+
+// ---------------- HELPERS ----------------
+if (typeof rand === "undefined") {
+  function rand(a){ return a[Math.floor(Math.random()*a.length)]; }
+}
+if (typeof chance === "undefined") {
+  function chance(p){ return Math.random() < p; }
+}
+
+// ---------------- STORY CARD SYSTEM ----------------
+if (typeof upsertCard === "undefined") {
+  function upsertCard({title, type, keys, entry, description}) {
+    if (!Array.isArray(storyCards)) return;
+    let card = storyCards.find(c => c.title === title);
+    if (!card) storyCards.push({ title, type, keys, entry, description });
+    else Object.assign(card, { type, keys, entry, description });
+  }
+}
+
+// ---------------- GRADES ----------------
+if (typeof gradeByLevel === "undefined") {
+  function gradeByLevel(l){
+    if(l >= 100) return "Special Grade";
+    if(l >= 80)  return "Grade 1";
+    if(l >= 60)  return "Semi-Grade 1";
+    if(l >= 40)  return "Grade 2";
+    if(l >= 20)  return "Grade 3";
+    return "Grade 4";
+  }
+}
+
+// ---------------- XP ----------------
+if (typeof xpForNextLevel === "undefined") {
+  function xpForNextLevel(){ return 50; }
+}
+
+// ---------------- CURSED ENERGY STATES ----------------
+if (typeof CE_STATES === "undefined") {
+  CE_STATES = [
+    "Overflowing",
+    "Abundant",
+    "Steady",
+    "Strained",
+    "Flickering",
+    "Depleted",
+    "Burned Out"
+  ];
+}
+
+// ---------------- CE DEGRADATION ----------------
+if (typeof degradeCE === "undefined") {
+  function degradeCE(m){
+    if(m.cursedEnergy === "Overflowing") m.cursedEnergy = "Abundant";
+    else if(m.cursedEnergy === "Abundant") m.cursedEnergy = "Steady";
+    else if(m.cursedEnergy === "Steady") m.cursedEnergy = "Strained";
+    else if(m.cursedEnergy === "Strained") m.cursedEnergy = "Flickering";
+    else if(m.cursedEnergy === "Flickering") m.cursedEnergy = "Depleted";
+    else if(m.cursedEnergy === "Depleted") m.cursedEnergy = "Burned Out";
+  }
+}
+
+if (typeof warnCE === "undefined") {
+  function warnCE(m){
+    if(m.cursedEnergy === "Strained")
+      state.memory.context += "\n\nYour cursed energy output feels unstable.";
+    if(m.cursedEnergy === "Flickering")
+      state.memory.context += "\n\nYour cursed energy falters, control slipping.";
+    if(m.cursedEnergy === "Depleted")
+      state.memory.context += "\n\nYour cursed energy collapses. Techniques fail.";
+    if(m.cursedEnergy === "Burned Out")
+      state.memory.context += "\n\nYour cursed energy is gone. You cannot use techniques.";
+  }
+}
+
+// ---------------- COMBAT WORDS ----------------
+if (typeof COMBAT_WORDS === "undefined") {
+  COMBAT_WORDS = [
+    "attack",
+    "strike",
+    "slash",
+    "cut",
+    "punch",
+    "kick",
+    "blast",
+    "stab",
+    "counter",
+    "exorcise",
+    "technique",
+    "domain",
+    "expansion",
+    "barrier",
+    "clash"
+  ];
+}
+
+// ---------------- CURSE RANKS ----------------
+if (typeof CURSE_RANKS === "undefined") {
+  CURSE_RANKS = [
+    "Low-Grade",
+    "Grade 3",
+    "Grade 2",
+    "Grade 1",
+    "Special Grade"
+  ];
+}
+
+// ---------------- CURSE ARCHETYPES ----------------
+if (typeof CURSE_ARCHETYPES === "undefined") {
+  CURSE_ARCHETYPES = [
+    {
+      name: "Malformed Wretch",
+      description:
+        "A grotesque mass of twisted limbs, exposed muscle, and uneven movement. " +
+        "It attacks recklessly and shows little self-preservation."
+    },
+    {
+      name: "Humanoid Distortion",
+      description:
+        "Almost human in shape, but proportions and motion are subtly wrong. " +
+        "It mimics speech and behavior imperfectly."
+    },
+    {
+      name: "Urban Echo",
+      description:
+        "Born from crowd anxiety, isolation, or panic. " +
+        "It manifests in stations, crossings, and enclosed city spaces."
+    },
+    {
+      name: "Emotion Cluster",
+      description:
+        "A writhing accumulation of shared grief, fear, or hatred. " +
+        "It lashes out indiscriminately and grows more violent when ignored."
+    },
+    {
+      name: "Predatory Intelligence",
+      description:
+        "Calculating and adaptive. It learns from failed attacks and targets weakness."
+    },
+    {
+      name: "Conceptual Curse",
+      description:
+        "An abstract fear given form. Its presence distorts perception, space, or logic."
+    }
+  ];
+}
+
+// ---------------- AI COMBAT GUIDANCE ----------------
+if (typeof ENEMY_PRESSURE_RULES === "undefined") {
+  ENEMY_PRESSURE_RULES =
+    "Lower-ranked curses swarm, harass, and flee if threatened. " +
+    "Grade 2 curses coordinate and exploit openings. " +
+    "Grade 1 curses taunt, test, and force mistakes. " +
+    "Special Grade curses dominate space, mock resistance, and escalate relentlessly.";
+}
+
+if (typeof FAILURE_ESCALATION === "undefined") {
+  FAILURE_ESCALATION =
+    "When attacks fail repeatedly, enemies grow bolder. " +
+    "Curses adapt patterns, target fatigue, and punish hesitation.";
+}
+
+if (typeof DOMAIN_AWARENESS === "undefined") {
+  DOMAIN_AWARENESS =
+    "Domains are rare and terrifying. Most curses cannot deploy them. " +
+    "When a Domain appears, the environment becomes hostile and absolute.";
+}
+
+if (typeof AI_COMBAT_GUIDANCE === "undefined") {
+  AI_COMBAT_GUIDANCE =
+    "Combat is never one-sided. Even weaker enemies fight back, retreat, or adapt. " +
+    "Victory carries cost. Survival is not guaranteed.";
+}
+
+// ---------------- BLOODLINES ----------------
+if (typeof BLOODLINE_TRAITS === "undefined") {
+  BLOODLINE_TRAITS = [
+    "Soul-Bound Lineage",
+    "Heaven-Touched",
+    "Black Pulse Ancestry",
+    "Severance Line",
+    "Empty Vessel",
+    "Echo Blood"
+  ];
+}
+
+if (typeof BLOODLINE_ABILITIES === "undefined") {
+  BLOODLINE_ABILITIES = {
+    "Soul-Bound Lineage":
+      "Instinctively perceives soul damage, distortion, and instability.",
+    "Heaven-Touched":
+      "Cursed energy circulation is unnaturally efficient and controlled.",
+    "Black Pulse Ancestry":
+      "Alignment after Black Flash lingers briefly, sharpening instinct.",
+    "Severance Line":
+      "Wounds inflicted resist clean healing and linger unnaturally.",
+    "Empty Vessel":
+      "Emotional fluctuation is muted, stabilizing output under pressure.",
+    "Echo Blood":
+      "Ancestral instincts surface briefly during extreme stress."
+  };
+}
+
+if (typeof assignBloodline === "undefined") {
+  function assignBloodline(){
+    return chance(0.15) ? rand(BLOODLINE_TRAITS) : null;
+  }
+}
+
+// =====================================================
+// JUJUTSU ASCENSION ENGINE v2 — FINAL RESTORED BUILD
+// FULL SCRIPT — PART 2 (ENTITY LOGIC, WORLD RESPONSE)
+// REDECLARATION-SAFE
+// =====================================================
+
+// ---------------- WORLD RESPONSE BY ENTITY TYPE ----------------
+if (typeof applyWorldBias === "undefined") {
+  function applyWorldBias(m){
+    if(!m || !m.entityType) return;
+
+    if(m.entityType === "Simurian"){
+      let response =
+        "\n\nSorcerers treat you with measured professionalism. " +
+        "You are accepted—but caution never fully fades.";
+
+      if(m.simurianSubtype === "Anchored")
+        response += "\nYour stability earns quiet approval.";
+      if(m.simurianSubtype === "Resonant")
+        response += "\nEmotional fluctuations are closely monitored.";
+      if(m.simurianSubtype === "Assimilated")
+        response += "\nYou pass easily among humans, which unsettles some.";
+      if(m.simurianSubtype === "Dominion")
+        response += "\nEmergency response plans exist for you. Everyone knows.";
+      if(m.simurianSubtype === "Fractured")
+        response += "\nPity and unease follow you everywhere.";
+
+      state.memory.context += response;
+      return;
+    }
+
+    if(m.entityType === "Cursed Spirit"){
+      state.memory.context +=
+        "\n\nSorcerers do not relax around you.\n" +
+        "You are tolerated only under strict conditions.\n" +
+        "Every interaction assumes possible exorcism.";
+    }
+  }
+}
+
+// ---------------- CURSE RESPONSE BY ENTITY TYPE ----------------
+if (typeof applyCurseBias === "undefined") {
+  function applyCurseBias(m){
+    if(!m || !m.entityType) return;
+
+    if(m.entityType === "Simurian"){
+      state.memory.context +=
+        "\n\nLesser cursed spirits react instinctively to you. " +
+        "Some recoil. Others bow without understanding why.";
+    }
+
+    if(m.entityType === "Cursed Spirit"){
+      state.memory.context +=
+        "\n\nLesser curses hesitate before you.\n" +
+        "Hostile curses sneer:\n" +
+        "\"You chose humans.\"\n" +
+        "\"Traitor spirit.\"";
+    }
+  }
+}
+
+// ---------------- SIMURIAN IDENTITY DETECTION ----------------
+if (typeof detectSimurianIdentity === "undefined") {
+  function detectSimurianIdentity(m, input){
+    if(m.entityType) return;
+
+    if(input.includes("simurian")){
+      m.entityType = "Simurian";
+      m.simurianSubtype = null;
+      m.needsReport = true;
+
+      state.memory.context +=
+        "\n\nThe world registers you as Simurian.\n" +
+        "An alien species that arrived ten years ago.\n" +
+        "Accepted after hard lessons—but never treated lightly.";
+    }
+  }
+}
+
+// ---------------- CURSED SPIRIT IDENTITY DETECTION ----------------
+if (typeof detectCursedSpiritIdentity === "undefined") {
+  function detectCursedSpiritIdentity(m, input){
+    if(m.entityType) return;
+
+    if(input.includes("cursed spirit")){
+      m.entityType = "Cursed Spirit";
+      m.needsReport = true;
+
+      state.memory.context +=
+        "\n\nYou are recognized as a sentient cursed spirit.\n" +
+        "Your existence is tolerated—but never trusted.\n" +
+        "Cooperation is permitted only to control lesser curses.";
+    }
+  }
+}
+
+// ---------------- SIMURIAN SUBTYPES ----------------
+if (typeof SIMURIAN_SUBTYPES === "undefined") {
+  SIMURIAN_SUBTYPES = [
+    "Anchored",
+    "Resonant",
+    "Assimilated",
+    "Dominion",
+    "Fractured"
+  ];
+}
+
+if (typeof assignSimurianSubtype === "undefined") {
+  function assignSimurianSubtype(m){
+    if(m.entityType !== "Simurian") return;
+    if(m.simurianSubtype) return;
+
+    m.simurianSubtype = rand(SIMURIAN_SUBTYPES);
+    m.needsReport = true;
+
+    state.memory.context +=
+      `\n\nSimurian Classification Assigned:\n${m.simurianSubtype} Type.\n` +
+      "Assessment is based on stability, not intent.";
+  }
+}
+
+// =====================================================
+// JUJUTSU ASCENSION ENGINE v2 — FINAL RESTORED BUILD
+// FULL SCRIPT — PART 3 (INNATE TECHNIQUES)
+// REDECLARATION-SAFE • COMPLETE • UNABRIDGED
+// =====================================================
+
+if (typeof INNATE_TECHNIQUES === "undefined") {
+  INNATE_TECHNIQUES = [
+    {
+      name: "Soul Cleaver",
+      domain: {
+        name: "Execution Grounds of Echoes",
+        description:
+          "A monochrome execution field layered with overlapping soul-echoes. " +
+          "Movement leaves delayed afterimages, and sound arrives late.",
+        sureHit:
+          "All strikes bypass physical durability and cleave the soul directly."
+      },
+      abilities: [
+        { type:"Base", n:"Essence Cut", d:"Cursed energy coats a weapon, allowing it to directly damage the soul." },
+        { type:"Reversal", n:"Spiritual Stitch", d:"Severed soul fragments are forcibly reattached incorrectly, destabilizing identity and technique output." },
+        { type:"Maximum", n:"Final Severance", d:"The soul is cleaved apart completely, preventing regeneration or post-mortem manifestation." }
+      ]
+    },
+
+    {
+      name: "Grave Current",
+      domain: {
+        name: "Stillwater Burial",
+        description:
+          "A flooded, lightless domain where motion feels weighted and sound is swallowed.",
+        sureHit:
+          "All targets are dragged by invisible currents that crush and immobilize."
+      },
+      abilities: [
+        { type:"Base", n:"Undertow", d:"Invisible force pulls targets off-balance and drags them toward danger." },
+        { type:"Reversal", n:"Receding Flow", d:"Force violently expels matter outward, rupturing muscles and terrain." },
+        { type:"Maximum", n:"Abyssal Collapse", d:"Space compresses inward, crushing everything caught within." }
+      ]
+    },
+
+    {
+      name: "Black Chains",
+      domain: {
+        name: "The Black Prison",
+        description:
+          "The air becomes heavier and chains surround a pure black landscape",
+        sureHit:
+          "The opponent must make conscious effort to move or perform physical action."
+      },
+      abilities: [
+        { type:"Base", n:"Chained", d:"Visible cursed chains bind and slow the target." },
+        { type:"Reversal", n:"Unchained", d:"Momentum inversion disrupts balance and timing." },
+        { type:"Maximum", n:"Chained Maiden", d:"Chains encase and crush the opponent." }
+      ]
+    },
+
+    {
+      name: "Void Parallax",
+      domain: {
+        name: "Zero Angle Killing Field",
+        description:
+          "A flattened, depthless space where walls, ground, and ceiling overlap visually.",
+        sureHit:
+          "All physical strikes land from blind angles, bypassing guard and stance."
+      },
+      abilities: [
+        { type:"Base", n:"Blindside Lunge", d:"Warped perception drives a strike into exposed vitals." },
+        { type:"Reversal", n:"Spatial Rebound", d:"Compressed space snaps outward, shattering bodies." },
+        { type:"Maximum", n:"Horizon Break", d:"Space collapses inward, crushing targets." }
+      ]
+    },
+
+    {
+      name: "Blood Static",
+      domain: {
+        name: "Crimson Pressure Ward",
+        description:
+          "Blood-soaked air vibrates violently, staining the domain in red mist.",
+        sureHit:
+          "Any wound is violently torn wider by cursed pressure."
+      },
+      abilities: [
+        { type:"Base", n:"Pulse Tear", d:"Cursed pressure detonates inside wounds." },
+        { type:"Reversal", n:"Vascular Whiplash", d:"Blood pressure reverses explosively." },
+        { type:"Maximum", n:"Red Rupture", d:"All blood within range detonates outward." }
+      ]
+    },
+
+    {
+      name: "Graviton Scripture",
+      domain: {
+        name: "Heavenly Weight Mausoleum",
+        description:
+          "Floating stone fragments grind together under crushing gravity.",
+        sureHit:
+          "Targets are pinned and crushed regardless of resistance."
+      },
+      abilities: [
+        { type:"Base", n:"Crush Verse", d:"Localized gravity slams enemies downward." },
+        { type:"Reversal", n:"Lift Sentence", d:"Gravity violently inverts." },
+        { type:"Maximum", n:"Final Compression", d:"Gravity collapses inward." }
+      ]
+    },
+
+    {
+      name: "Echo Severance",
+      domain: {
+        name: "Resonant Slaughter Hall",
+        description:
+          "Sound ricochets endlessly, vibrating the structure itself.",
+        sureHit:
+          "All vibrations strike internal organs directly."
+      },
+      abilities: [
+        { type:"Base", n:"Impact Resonance", d:"Strikes fracture bone through vibration." },
+        { type:"Reversal", n:"Vacuum Slam", d:"Sudden silence implodes air pressure." },
+        { type:"Maximum", n:"Terminal Reverberation", d:"A single shockwave liquefies everything." }
+      ]
+    },
+
+    {
+      name: "Moment Tyranny",
+      domain: {
+        name: "Stillframe Execution Zone",
+        description:
+          "Movement appears staggered, as if reality lags behind actions.",
+        sureHit:
+          "All enemy movements are intercepted by unavoidable physical strikes."
+      },
+      abilities: [
+        { type:"Base", n:"Interruption Blow", d:"Strikes land mid-motion." },
+        { type:"Reversal", n:"Acceleration Break", d:"Explosive speed overwhelms defenses." },
+        { type:"Maximum", n:"Chronal Impact", d:"All momentum converges into one annihilating strike." }
+      ]
+    },
+
+    {
+      name: "Steel Devotion",
+      domain: {
+        name: "Iron Massacre Shrine",
+        description:
+          "The ground erupts with embedded blades and fractured metal.",
+        sureHit:
+          "Metal eruptions impale targets relentlessly."
+      },
+      abilities: [
+        { type:"Base", n:"Rending Edge", d:"Metal shards form along limbs." },
+        { type:"Reversal", n:"Backlash Shard", d:"Embedded metal detonates outward." },
+        { type:"Maximum", n:"Total Impalement", d:"All metal converges to skewer targets." }
+      ]
+    },
+
+    {
+      name: "Shockframe",
+      domain: {
+        name: "Fracture Velocity Cage",
+        description:
+          "Cracked ground floats as shockwaves ripple endlessly.",
+        sureHit:
+          "Every impact produces unavoidable concussive force."
+      },
+      abilities: [
+        { type:"Base", n:"Kinetic Slam", d:"Momentum amplifies physical blows." },
+        { type:"Reversal", n:"Recoil Burst", d:"Stored force erupts outward." },
+        { type:"Maximum", n:"Impact Singularity", d:"All kinetic energy collapses into catastrophe." }
+      ]
+    },
+
+    {
+      name: "Time Prediction",
+      domain: {
+        name: "All-Seeing Eye",
+        description:
+          "A white, depthless abyss filled with transparent reflections.",
+        sureHit:
+          "The user perceives every enemy action before it occurs."
+      },
+      abilities: [
+        { type:"Base", n:"Future Predict", d:"See enemy actions 3 seconds ahead on contact." },
+        { type:"Reversal", n:"Past Rewind", d:"Rewind both user and target by 3 seconds." },
+        { type:"Maximum", n:"Present Freeze", d:"Freeze the target in time for 8 seconds." }
+      ]
+    },
+
+    {
+      name: "Red Binding",
+      domain: {
+        name: "Puppeteer's Paradise",
+        description:
+          "A wooden stage before an infinite dark audience.",
+        sureHit:
+          "Red strings bind and cut deeper when resisted."
+      },
+      abilities: [
+        { type:"Base", n:"Bind", d:"Red strings bind enemies or objects." },
+        { type:"Reversal", n:"Stitch", d:"Stitch internal wounds at heavy CE cost." },
+        { type:"Maximum", n:"Puppeteer", d:"Control enemy movement via strings." }
+      ]
+    },
+
+    {
+      name: "Iron Reinforcement",
+      domain: {
+        name: "Steel Fortress",
+        description:
+          "A mechanical, steampunk-style castle",
+        sureHit:
+          "Filled with medieval cannons that fire relentlessly."
+      },
+      abilities: [
+        { type:"Base", n:"Reinforce", d:"Cover a limb in iron, boosting power and defense." },
+        { type:"Reversal", n:"Construct", d:"Construct metal formations from surroundings." },
+        { type:"Maximum", n:"Full-Metal Augmentation", d:"Entire body becomes armored metal." }
+      ]
+    },
+
+    {
+      name: "Earth Manipulation",
+      domain: {
+        name: "Dirt Coffin",
+        description:
+          "A muddy swampland",
+        sureHit:
+          "Enemies are slowed while terrain obeys the user."
+      },
+      abilities: [
+        { type:"Base", n:"Control", d:"Manipulate earth freely." },
+        { type:"Reversal", n:"Metal Manipulation", d:"Control metal at reduced efficiency." },
+        { type:"Maximum", n:"Full Control", d:"Absolute manipulation of natural matter." }
+      ]
+    },
+
+    {
+      name: "Musical Steps",
+      domain: {
+        name: "Rave Party",
+        description:
+          "RGB lights pulse across a vibrating dance floor.",
+        sureHit:
+          "Enemies take damage if they fail to move on rhythm."
+      },
+      abilities: [
+        { type:"Base", n:"Rhythm Buff", d:"On-beat movement boosts attack power." },
+        { type:"Reversal", n:"Off-Beat Tempo", d:"Off-beat movement boosts defense and heals slightly." },
+        { type:"Maximum", n:"EDM Experimentalism", d:"Move in impossible rhythmic patterns." }
+      ]
+    },
+
+    {
+      name: "Cursed Vinyl",
+      domain: {
+        name: "Endless Turntable",
+        description:
+          "A spinning vinyl stage governs the fight.",
+        sureHit:
+          "Techniques activate only on rhythmic cycles."
+      },
+      abilities: [
+        { type:"Base", n:"Scratch Strike", d:"Disrupt cursed techniques like a record scratch." },
+        { type:"Reversal", n:"Reverse Playback", d:"Rewind the last impact taken by one second." },
+        { type:"Maximum", n:"Final Track Drop", d:"Crushing cursed wave until the track ends." }
+      ]
+    },
+
+    {
+      name: "Tatami Judgment",
+      domain: {
+        name: "Sealed Dojo of Stillness",
+        description:
+          "A pristine tatami dojo enforcing balance.",
+        sureHit:
+          "Any loss of footing results in joint-breaking punishment."
+      },
+      abilities: [
+        { type:"Base", n:"Balanced Palm", d:"Disrupt enemy posture." },
+        { type:"Reversal", n:"Grounded Form", d:"Nullify knockback." },
+        { type:"Maximum", n:"Disciplinary Collapse", d:"Tatami layers crush unstable targets." }
+      ]
+    },
+
+    {
+      name: "Negative Space",
+      domain: {
+        name: "Gallery of Absence",
+        description:
+          "An art gallery of invisible sculptures.",
+        sureHit:
+          "Attacks emerge from empty space."
+      },
+      abilities: [
+        { type:"Base", n:"Void Cut", d:"Slice through unoccupied space." },
+        { type:"Reversal", n:"Blank Canvas", d:"Erase space to negate an attack." },
+        { type:"Maximum", n:"Total Erasure Exhibit", d:"Collapse all empty space inward." }
+      ]
+    },
+
+    {
+      name: "Foxfire Etiquette",
+      domain: {
+        name: "Kitsune Banquet Hall",
+        description:
+          "Lantern-lit hall of foxfire illusions.",
+        sureHit:
+          "Illusions burn the senses regardless of resistance."
+      },
+      abilities: [
+        { type:"Base", n:"Borrowed Face", d:"Create illusionary duplicates." },
+        { type:"Reversal", n:"Spirit Hospitality", d:"Foxfire seals wounds." },
+        { type:"Maximum", n:"Ninefold Deception", d:"Layered illusions deal real damage." }
+      ]
+    },
+
+    {
+      name: "Panel Breaker",
+      domain: {
+        name: "Serialized Slaughter",
+        description:
+          "Reality fractures into manga panels.",
+        sureHit:
+          "Sequential unavoidable impacts per panel."
+      },
+      abilities: [
+        { type:"Base", n:"Impact Frame", d:"Every punch lands as a panel climax." },
+        { type:"Reversal", n:"Skip Page", d:"Jump past damage frames." },
+        { type:"Maximum", n:"Final Chapter", d:"All panels collapse into one lethal strike." }
+      ]
+    },
+
+    {
+      name: "Temple Bell Harmonics",
+      domain: {
+        name: "Resonance Pagoda",
+        description:
+          "A pagoda of untouchable ringing bells.",
+        sureHit:
+          "Sound vibrates through bone and cursed energy."
+      },
+      abilities: [
+        { type:"Base", n:"Harmonic Blow", d:"Bell-like vibration fractures internals." },
+        { type:"Reversal", n:"Echo Shelter", d:"Resonant dampening reduces damage." },
+        { type:"Maximum", n:"Great Bell Verdict", d:"Single resonant annihilation." }
+      ]
+    },
+
+    {
+      name: "Funeral Drum",
+      domain: {
+        name: "March of the Departed",
+        description:
+          "A foggy road marked by distant drums.",
+        sureHit:
+          "Each drumbeat inflicts cumulative damage."
+      },
+      abilities: [
+        { type:"Base", n:"Rhythm Strike", d:"Attacks sync to drumbeats." },
+        { type:"Reversal", n:"Measured Step", d:"Reduce damage by matching rhythm." },
+        { type:"Maximum", n:"Final Procession", d:"Relentless synchronized assault." }
+      ]
+    },
+
+    {
+      name: "Inkbound Curse",
+      domain: {
+        name: "Living Ukiyo-e",
+        description:
+          "The world becomes animated woodblock art.",
+        sureHit:
+          "Illustrated scenes deal real damage."
+      },
+      abilities: [
+        { type:"Base", n:"Printed Slash", d:"Ink-forged blades emerge from lines." },
+        { type:"Reversal", n:"Restored Print", d:"Damaged areas reprint and heal." },
+        { type:"Maximum", n:"Great Wave Descent", d:"Colossal ink wave obliteration." }
+      ]
+    },
+
+    {
+      name: "Shadow Kabuki",
+      domain: {
+        name: "Stage of False Faces",
+        description:
+          "Masked shadows perform a lethal play.",
+        sureHit:
+          "Shadow strikes land regardless of defense."
+      },
+      abilities: [
+        { type:"Base", n:"Masked Strike", d:"Shadow attacks from blind angles." },
+        { type:"Reversal", n:"Role Exchange", d:"Swap damage between shadow and body." },
+        { type:"Maximum", n:"Curtain Call Execution", d:"All shadows converge for execution." }
+      ]
+    },
+
+    {
+      name: "Static Scripture",
+      domain: {
+        name: "Broadcast Sanctuary",
+        description:
+          "An endless radio tower of cursed interference.",
+        sureHit:
+          "Signals disrupt cursed energy flow."
+      },
+      abilities: [
+        { type:"Base", n:"Signal Strike", d:"Scramble technique activation." },
+        { type:"Reversal", n:"White Noise Guard", d:"Reduce incoming technique accuracy." },
+        { type:"Maximum", n:"Dead Air Collapse", d:"Total cursed blackout annihilation." }
+      ]
+    }
+  ];
+}
+
+// =====================================================
+// JUJUTSU ASCENSION ENGINE v2 — FINAL RESTORED BUILD
+// FULL SCRIPT — PART 4 (RCT, NEAR-DEATH, DEFENSIVE, DOMAIN LOGIC)
+// REDECLARATION-SAFE • COMPLETE
+// =====================================================
+
+// ---------------- HEAVENLY RESTRICTION ----------------
+if (typeof applyHeavenlyRestriction === "undefined") {
+  function applyHeavenlyRestriction(m){
+    m.cursedEnergy = null;
+    m.domainUnlocked = false;
+    m.simpleDomain = false;
+    m.fallingBlossom = false;
+    m.rct = false;
+    m.rctExternal = false;
+
+    m.physical = {
+      strength: "Superhuman",
+      speed: "Extreme",
+      durability: "Inhuman",
+      perception: "Preternatural"
+    };
+  }
+}
+
+// Physical growth by rank for Heavenly Restriction users
+if (typeof scaleHeavenlyBody === "undefined") {
+  function scaleHeavenlyBody(m){
+    if(!m.heavenlyRestriction) return;
+
+    if(m.grade === "Grade 3"){
+      m.physical.strength = "Monstrous";
+      m.physical.speed = "Extreme";
+    }
+    if(m.grade === "Grade 2"){
+      m.physical.strength = "Monstrous";
+      m.physical.speed = "Blinding";
+      m.physical.durability = "Monstrous";
+    }
+    if(m.grade === "Grade 1"){
+      m.physical.strength = "Catastrophic";
+      m.physical.speed = "Blinding";
+      m.physical.durability = "Near-Indestructible";
+    }
+    if(m.grade === "Special Grade"){
+      m.physical.strength = "Mythic";
+      m.physical.speed = "Untouchable";
+      m.physical.durability = "Unbreakable";
+    }
+  }
+}
+
+// ---------------- RCT CONDITIONS ----------------
+if (typeof attemptRCTUnlock === "undefined") {
+  function attemptRCTUnlock(m){
+    if(m.heavenlyRestriction || m.rct) return;
+
+    if(m.nearDeath || m.grade === "Special Grade"){
+      m.rct = true;
+      state.memory.context +=
+        "\n\nCursed energy inverts.\nPain collapses inward as flesh and bone reconstruct.";
+      m.needsReport = true;
+    }
+  }
+}
+
+// ---------------- RCT ON OTHERS ----------------
+if (typeof attemptExternalRCT === "undefined") {
+  function attemptExternalRCT(m, input){
+    if(!m.rct || m.heavenlyRestriction) return;
+
+    if(
+      input.includes("heal") ||
+      input.includes("restore") ||
+      input.includes("reverse cursed technique on")
+    ){
+      state.memory.context +=
+        "\n\nYou force inverted cursed energy into another body. " +
+        "Wounds close violently, breath returns.";
+
+      state.memory.context +=
+        "\n\nReverse Cursed Technique cannot restore the dead. " +
+        "Destroyed brains or severed heads cannot be repaired.";
+
+      degradeCE(m);
+      m.needsReport = true;
+    }
+  }
+}
+
+// ---------------- NEAR-DEATH DETECTION ----------------
+if (typeof checkNearDeath === "undefined") {
+  function checkNearDeath(m, input){
+    if(
+      input.includes("impaled") ||
+      input.includes("fatal") ||
+      input.includes("bleeding out") ||
+      input.includes("heart stops") ||
+      input.includes("crushed")
+    ){
+      if(!m.nearDeath){
+        m.nearDeath = true;
+        state.memory.context +=
+          "\n\nYour consciousness thins. Death is close enough to feel.";
+        m.needsReport = true;
+      }
+    }
+  }
+}
+
+// ---------------- DEFENSIVE TECHNIQUE UNLOCKS ----------------
+if (typeof unlockDefensiveTechniques === "undefined") {
+  function unlockDefensiveTechniques(m){
+    if(m.heavenlyRestriction) return;
+
+    if(m.grade === "Grade 2"){
+      if(!m.simpleDomain){
+        m.simpleDomain = true;
+        state.memory.context +=
+          "\n\nYou grasp the fundamentals of Simple Domain. " +
+          "You can now neutralize sure-hit effects.";
+        m.needsReport = true;
+      }
+
+      if(!m.fallingBlossom){
+        m.fallingBlossom = true;
+        state.memory.context +=
+          "\n\nYour body learns Falling Blossom Emotion. " +
+          "Movement becomes instinctive under threat.";
+        m.needsReport = true;
+      }
+    }
+  }
+}
+
+// ---------------- SIMPLE DOMAIN ----------------
+if (typeof attemptSimpleDomain === "undefined") {
+  function attemptSimpleDomain(m, input){
+    if(!m.simpleDomain || m.heavenlyRestriction) return;
+
+    if(input.includes("simple domain")){
+      state.memory.context +=
+        "\n\nYou deploy Simple Domain. " +
+        "The sure-hit effect of the hostile Domain is neutralized.";
+
+      state.memory.context +=
+        "\n\nThe surrounding Domain remains intact. " +
+        "Pressure continues to mount.";
+
+      degradeCE(m);
+      m.needsReport = true;
+    }
+  }
+}
+
+// ---------------- FALLING BLOSSOM EMOTION ----------------
+if (typeof attemptFallingBlossom === "undefined") {
+  function attemptFallingBlossom(m, input){
+    if(!m.fallingBlossom || m.heavenlyRestriction) return;
+
+    if(
+      input.includes("falling blossom") ||
+      input.includes("falling blossom emotion")
+    ){
+      state.memory.context +=
+        "\n\nFalling Blossom Emotion activates. " +
+        "Your body moves before thought, redirecting attacks instinctively.";
+
+      state.memory.context +=
+        "\n\nThis does not cancel Domains. " +
+        "It relies entirely on sustained motion.";
+
+      degradeCE(m);
+      m.needsReport = true;
+    }
+  }
+}
+
+// ---------------- DOMAIN INTERACTION RULES ----------------
+if (typeof DOMAIN_DEFENSE_RULES === "undefined") {
+  DOMAIN_DEFENSE_RULES =
+    "Simple Domain negates sure-hit effects only. " +
+    "It does not overpower or destroy Domains. " +
+    "Falling Blossom Emotion avoids attacks through continuous movement. " +
+    "Both fail if cursed energy is depleted.";
+}
+
+// ---------------- DOMAIN EXPANSION DETECTION ----------------
+if (typeof detectDomainUse === "undefined") {
+  function detectDomainUse(m, input){
+    if(m.heavenlyRestriction) return false;
+    if(!m.domainUnlocked) return false;
+
+    return (
+      input.includes("domain expansion") ||
+      input.includes("expand domain")
+    );
+  }
+}
+
+// ---------------- ENEMY DOMAIN DETECTION ----------------
+if (typeof detectEnemyDomain === "undefined") {
+  function detectEnemyDomain(input){
+    return (
+      input.includes("enemy domain") ||
+      input.includes("hostile domain") ||
+      input.includes("their domain expands")
+    );
+  }
+}
+
+// ---------------- DOMAIN CLASH RESOLUTION ----------------
+if (typeof resolveDomainClash === "undefined") {
+  function resolveDomainClash(m){
+    const roll = Math.random();
+
+    if(roll < 0.33){
+      state.memory.context +=
+        "\n\nYour Domain overwhelms the opposing reality. Their space fractures.";
+      degradeCE(m);
+    }
+    else if(roll < 0.66){
+      state.memory.context +=
+        "\n\nBoth Domains collapse violently. Reality snaps back with force.";
+      m.cursedEnergy = "Depleted";
+    }
+    else{
+      state.memory.context +=
+        "\n\nThe Domains grind against each other, neither yielding. Space destabilizes.";
+      m.cursedEnergy = "Flickering";
+    }
+
+    state.memory.context +=
+      "\n\nCivilians flee. Sorcerers hesitate, shaken by the pressure.";
+  }
+}
+
+// =====================================================
+// JUJUTSU ASCENSION ENGINE v2 — FINAL RESTORED BUILD
+// FULL SCRIPT — PART 5 (BLACK FLASH, FLOW STATE, APPRAISAL, MODIFIER)
+// REDECLARATION-SAFE • COMPLETE • FINAL
+// =====================================================
+
+// ---------------- ABILITY UNLOCK RULES ----------------
+// Base: Start
+// Reversal: Grade 3
+// Maximum: Grade 2
+// Domain: Grade 1 OR 5 Black Flashes
+
+if (typeof unlockAbilities === "undefined") {
+  function unlockAbilities(m){
+    if(m.heavenlyRestriction) return;
+    if(!m.innate || !Array.isArray(m.innate.abilities)) return;
+
+    if(m.grade === "Grade 3" && m.unlockedAbilities.length === 1){
+      m.unlockedAbilities.push(m.innate.abilities[1].n);
+      m.needsReport = true;
+    }
+
+    if(m.grade === "Grade 2" && m.unlockedAbilities.length === 2){
+      m.unlockedAbilities.push(m.innate.abilities[2].n);
+      m.needsReport = true;
+    }
+
+    if(m.grade === "Grade 1"){
+      m.domainUnlocked = true;
+      m.needsReport = true;
+    }
+  }
+}
+
+// ---------------- BLACK FLASH & FLOW STATE ----------------
+// Black Flash is NEVER chosen by the player.
+// It triggers only during combat narration.
+
+if (typeof attemptBlackFlash === "undefined") {
+  function attemptBlackFlash(m, input){
+    if(m.heavenlyRestriction) return;
+    if(m.cursedEnergy === "Burned Out") return;
+
+    const combatTriggered = COMBAT_WORDS.some(w => input.includes(w));
+    if(!combatTriggered) return;
+
+    let bfChance = 0.01; // ~1%
+
+    if(m.flowState) bfChance += 0.05;
+    if(m.bloodline === "Black Pulse Ancestry") bfChance += 0.01;
+
+    if(Math.random() < bfChance){
+      m.blackFlashCount++;
+      m.flowState = true;
+      m.flowTurns = 2;
+      m.cursedEnergy = "Overflowing";
+      m.xp += 100;
+
+      state.memory.context +=
+        "\n\nBLACK FLASH.\n" +
+        "Impact and cursed energy align perfectly. Space fractures.";
+
+      if(m.blackFlashCount >= 5 && !m.domainUnlocked){
+        m.domainUnlocked = true;
+        state.memory.context +=
+          "\n\nSomething changes. Your cursed energy no longer resists forming a Domain.";
+      }
+
+      m.needsReport = true;
+    }
+  }
+}
+
+if (typeof decayFlow === "undefined") {
+  function decayFlow(m){
+    if(!m.flowState) return;
+
+    m.flowTurns--;
+    if(m.flowTurns <= 0){
+      m.flowState = false;
+      state.memory.context +=
+        "\n\nYour alignment fades. The moment passes.";
+    }
+  }
+}
+
+// ---------------- FULL APPRAISAL ----------------
+if (typeof buildFullReport === "undefined") {
+  function buildFullReport(m){
+    let text = "";
+
+    function formatAbilities(type){
+      if(!m.innate || !m.innate.abilities) return null;
+      const list = m.innate.abilities.filter(
+        a => a.type === type && m.unlockedAbilities.includes(a.n)
+      );
+      if(!list.length) return null;
+      return list.map(a =>
+        `${a.n}\n${a.d}`
+      ).join("\n\n");
+    }
+
+    function section(title, body){
+      if(!body) return "";
+      return `${title}:\n${body}\n\n`;
+    }
+
+    if(m.heavenlyRestriction){
+      text =
+`Heavenly Restriction:
+Absolute
+
+Physical Attributes:
+Strength — ${m.physical?.strength}
+Speed — ${m.physical?.speed}
+Durability — ${m.physical?.durability}
+Perception — ${m.physical?.perception}
+
+Rank: ${m.grade}
+Level: ${m.level}
+
+Note:
+This body produces no cursed energy.`;
+    } else {
+      const nextRankXP = xpForNextLevel() - m.xp;
+
+      const base = formatAbilities("Base");
+      const reversal = formatAbilities("Reversal");
+      const maximum = formatAbilities("Maximum");
+
+      const domain = m.domainUnlocked
+        ? `${m.innate.domain.name}
+${m.innate.domain.description}
+Sure-Hit Effect:
+${m.innate.domain.sureHit}`
+        : null;
+
+      const simpleDomain = m.simpleDomain
+        ? "A defensive technique that neutralizes sure-hit effects without dismantling the hostile Domain."
+        : null;
+
+      const fallingBlossom = m.fallingBlossom
+        ? "Instinctive reactive movement that avoids sure-hit attacks through continuous motion."
+        : null;
+
+      const rct = m.rct
+        ? "Inverts cursed energy to reconstruct flesh and bone. Cannot restore the dead or destroyed brains."
+        : null;
+
+      text =
+`Innate Technique:
+${m.innate.name}
+
+${section("Base Technique", base)}${section("Reversal Technique", reversal)}${section("Maximum Technique", maximum)}${section("Domain Expansion", domain)}${section("Simple Domain", simpleDomain)}${section("Falling Blossom Emotion", fallingBlossom)}${section("Reverse Cursed Technique", rct)}Rank: ${m.grade}
+Level: ${m.level}
+XP to Next Level: ${nextRankXP}
+
+Cursed Energy:
+${m.cursedEnergy}`;
+    }
+
+    upsertCard({
+      title: "Sorcerer Appraisal",
+      type: "World",
+      keys: "Jujutsu,Status",
+      entry: "A living assessment of the sorcerer’s condition.",
+      description: text
+    });
+  }
+}
+
+// ---------------- MODIFIER ----------------
+const modifier = (text) => {
+  if(!state.sorcerer){
+    state.sorcerer = initSorcerer();
+
+    // ---- ENTITY DEFAULTS ----
+    state.sorcerer.entityType = null;
+    state.sorcerer.simurianSubtype = null;
+
+    // ---- GUARANTEED INNATE ASSIGNMENT (ALL RACES) ----
+    if(state.sorcerer.heavenlyRestriction){
+      applyHeavenlyRestriction(state.sorcerer);
+    } else {
+      if(!state.sorcerer.innate){
+        state.sorcerer.innate = rand(INNATE_TECHNIQUES);
+      }
+      if(!Array.isArray(state.sorcerer.unlockedAbilities)){
+        state.sorcerer.unlockedAbilities = [
+          state.sorcerer.innate.abilities[0].n
+        ];
+      }
+      state.sorcerer.bloodline = assignBloodline();
+    }
+
+    return { text };
+  }
+
+  const m = state.sorcerer;
+  const input = text.toLowerCase();
+
+  // ---- ENTITY DETECTION ----
+  detectSimurianIdentity(m, input);
+  detectCursedSpiritIdentity(m, input);
+  assignSimurianSubtype(m);
+
+  applyWorldBias(m);
+  applyCurseBias(m);
+
+  // ---- XP ----
+  m.xp += 10;
+  COMBAT_WORDS.forEach(w=>{
+    if(input.includes(w)) m.xp += 20;
+  });
+
+  while(m.xp >= xpForNextLevel() && m.level < 100){
+    m.xp -= xpForNextLevel();
+    m.level++;
+    m.grade = gradeByLevel(m.level);
+    m.needsReport = true;
+  }
+
+  if(m.heavenlyRestriction){
+    scaleHeavenlyBody(m);
+  } else {
+    unlockAbilities(m);
+    unlockDefensiveTechniques(m);
+  }
+
+  checkNearDeath(m, input);
+  attemptRCTUnlock(m);
+  attemptExternalRCT(m, input);
+
+  const playerDomain = detectDomainUse(m, input);
+  const enemyDomain = detectEnemyDomain(input);
+  if(playerDomain && enemyDomain){
+    resolveDomainClash(m);
+    m.needsReport = true;
+  }
+
+  attemptSimpleDomain(m, input);
+  attemptFallingBlossom(m, input);
+
+  attemptBlackFlash(m, input);
+  decayFlow(m);
+
+  if(!m.heavenlyRestriction) warnCE(m);
+
+  if(m.needsReport){
+    buildFullReport(m);
+    m.needsReport = false;
+  }
+
+  return { text };
+};
+
+modifier(text);
+
+
