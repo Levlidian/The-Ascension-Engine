@@ -1084,7 +1084,7 @@ if (typeof attemptBlackFlash === "undefined") {
 
       state.memory.context +=
         "\n\nBLACK FLASH.\n" +
-        "Impact and cursed energy align perfectly. Space fractures.";
+        "Impact and cursed energy align perfectly. Space fractures and black lightning surrounds you with a loud crack of thunder.";
 
       if(m.blackFlashCount >= 5 && !m.domainUnlocked){
         m.domainUnlocked = true;
