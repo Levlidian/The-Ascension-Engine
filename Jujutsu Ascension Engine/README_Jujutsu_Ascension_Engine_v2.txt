@@ -36,6 +36,7 @@ The engine:
 - Updates a Story Card called “Sorcerer Appraisal”
 
 You simply play the story.
+But you may state 'You Steady your breathing' to activate the card generation
 
 ====================================================
 CORE DATA STORED BY THE ENGINE
