@@ -1,0 +1,61 @@
+InnerSelf("input");
+
+const modifier = (text) => {
+
+  // Track turns exactly as before
+  state.storyEngine.turnCounter++;
+
+  // Passive time progression (unchanged)
+  if (state.storyEngine.turnCounter % 5 === 0)
+    advanceTime(10);
+
+  // Detect player intent
+  const action = parseAction(text);
+
+  // Active time progression (unchanged)
+  if (action === "WAIT") advanceTime(30);
+  if (action === "SLEEP") advanceTime(480);
+
+  // --- NEW: Narrative time awareness (non-mechanical) ---
+  const t = state.storyEngine.time;
+  const month = MONTHS[t.monthIndex];
+
+  if (action === "TIME") {
+    text =
+      `You check the time.\n` +
+      `It’s ${t.hour}:${String(t.minute).padStart(2,"0")}.\n\n` +
+      text;
+  }
+
+  if (action === "DATE") {
+    text =
+      `You think about the date.\n` +
+      `It’s ${t.weekday}, ${month} ${t.day}, ${t.year}.\n\n` +
+      text;
+  }
+
+  if (action === "SEASON") {
+    text =
+      `You register the feel of the year.\n` +
+      `It’s ${t.season}.\n\n` +
+      text;
+  }
+
+  if (action === "EVENT") {
+    const event = t.calendarEvent || "nothing of note";
+    text =
+      `You recall what tonight means.\n` +
+      `It’s ${event}.\n\n` +
+      text;
+  }
+
+  // InnerSelf hook preserved exactly
+  if (typeof InnerSelfInput === "function")
+    text = InnerSelfInput(text);
+
+  return { text };
+};
+
+modifier(text);
+
+

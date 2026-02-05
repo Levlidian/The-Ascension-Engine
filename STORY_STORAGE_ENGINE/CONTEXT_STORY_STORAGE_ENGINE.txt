@@ -1,0 +1,35 @@
+InnerSelf("context");
+
+const modifier=(text,stop)=>{
+  const t=state.storyEngine.time;
+  const month=MONTHS[t.monthIndex];
+
+  let context=`
+CITY: ${state.storyEngine.currentCity}
+DISTRICT: ${state.storyEngine.currentDistrict}
+LOCATION: ${state.storyEngine.currentLocation}
+
+TIME: ${t.weekday}, ${month} ${t.day}, ${t.year}
+It is ${t.hour}:${String(t.minute).padStart(2,"0")} (${t.season})
+
+SCENE MOOD:
+${state.storyEngine.locations[state.storyEngine.currentLocation].sceneTone.join(" ")}
+
+PRESENT:
+`;
+
+  for(const[name,c]of Object.entries(state.storyEngine.characters)){
+    context+=`${name} — ${c.voiceProfile?.texture||"neutral"} voice\n`;
+  }
+
+  text=context+text;
+
+  if(typeof InnerSelfContext==="function")
+    [text,stop]=InnerSelfContext(text,stop);
+
+  return{text,stop};
+};
+
+modifier(text,stop);
+
+
