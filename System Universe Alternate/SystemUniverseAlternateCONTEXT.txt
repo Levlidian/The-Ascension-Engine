@@ -1,0 +1,260 @@
+// ======================================================
+// SYSTEM UNIVERSE — CONTEXT (FINAL HYBRID)
+// ======================================================
+
+const modifier = (text) => {
+
+  if (!state.system) return { text };
+
+  const s = state.system;
+
+  // ================= SYSTEM (CANON ACCURATE) =================
+  let systemBlock =
+"[System:\n" +
+"Level " + s.level + "\n" +
+"Class " + s.class.base + "\n\n" +
+"Stats:\n" +
+"STR " + s.stats.strength + " AGI " + s.stats.agility + " VIT " + s.stats.vitality + "\n" +
+"INT " + s.stats.intelligence + " PER " + s.stats.perception + "\n\n" +
+"Skills and attributes affect performance.\n" +
+"]\n";
+
+  // ================= GUIDANCE =================
+  let guidance = "[Guidance:\n";
+
+
+
+  // ===== DOMINANT STAT =====
+  let dominant = Object.entries(s.stats).sort((a,b)=>b[1]-a[1])[0][0];
+
+  if (dominant === "strength") guidance += "Favor forceful, high-impact outcomes.\n";
+  if (dominant === "agility") guidance += "Favor speed, precision, and fluid movement.\n";
+  if (dominant === "vitality") guidance += "Favor endurance and resilience.\n";
+  if (dominant === "intelligence") guidance += "Favor strategy and calculated decisions.\n";
+  if (dominant === "perception") guidance += "Favor awareness and anticipation.\n";
+
+  // ===== SKILLS =====
+  if (s.skills["Swordsmanship"] && s.skills["Swordsmanship"].level >= 5) {
+    guidance += "Combat proficiency is refined and efficient.\n";
+  }
+
+  if (s.skills["Magic"] && s.skills["Magic"].level >= 5) {
+    guidance += "Magic usage is controlled and deliberate.\n";
+  }
+
+  if (s.skills["Stealth"] && s.skills["Stealth"].level >= 5) {
+    guidance += "Movement is subtle and difficult to detect.\n";
+  }
+
+  // ===== TRAITS =====
+  if (s.traits && s.traits.includes("Death Touched")) {
+    guidance += "Presence carries a hardened edge shaped by survival.\n";
+  }
+
+  // ===== LEVEL ESCALATION =====
+  if (s.level >= 15) {
+    guidance += "High capability should feel dominant.\n";
+  } else if (s.level >= 10) {
+    guidance += "Actions should feel impactful.\n";
+  } else if (s.level >= 5) {
+    guidance += "Actions should show growing confidence.\n";
+  }
+
+  // ===== NPC REACTION =====
+  if (s.level >= 15) {
+    guidance += "Opponents may fear or avoid confrontation.\n";
+  } else if (s.level >= 10) {
+    guidance += "Opponents recognize a serious threat.\n";
+  } else if (s.level >= 5) {
+    guidance += "Weaker opponents may hesitate.\n";
+  }
+
+  // ===== TITLE REACTIONS =====
+  if (s.titles.includes("Executioner")) {
+    guidance += "Others may feel fear or tension around the character.\n";
+  }
+
+  if (s.titles.includes("Predator")) {
+    guidance += "The character is perceived as dangerous and aggressive.\n";
+  }
+
+  if (s.titles.includes("Tactician")) {
+    guidance += "Others may treat the character as calculating and intelligent.\n";
+  }
+
+  // ===== PERCEPTION FILTER =====
+  if (s.stats.intelligence <= 6) {
+    guidance += "Descriptions may be less precise or slightly unclear.\n";
+  }
+
+  if (s.stats.perception >= 12) {
+    guidance += "Fine details and subtle movements should be noticeable.\n";
+  }
+
+  // ===== NARRATIVE VARIATION =====
+  if (!s.flags.styleIndex) s.flags.styleIndex = 0;
+
+  const styles = [
+    "Vary sentence structure.",
+    "Use concise but vivid descriptions.",
+    "Emphasize motion and flow.",
+    "Highlight perception and subtle detail."
+  ];
+
+  let styleInstruction = styles[s.flags.styleIndex % styles.length];
+  s.flags.styleIndex++;
+
+  guidance += styleInstruction + "\n";
+  guidance += "Avoid repetitive phrasing.\n";
+
+  // ================= WORLD PRESSURE INJECTION =================
+
+let pressure = s.world?.pressure || 0;
+
+guidance += "\n[World Pressure:\n";
+
+if (pressure <= 4) {
+  guidance += "The environment feels manageable. Threats are minimal and often hesitant.\n";
+}
+
+else if (pressure <= 8) {
+  guidance += "Tension is noticeable. Enemies react with awareness and occasional coordination.\n";
+}
+
+else if (pressure <= 12) {
+  guidance += "Danger is present. Enemies act with intent and will exploit openings.\n";
+}
+
+else if (pressure <= 16) {
+  guidance += "High threat level. Enemies coordinate, pressure relentlessly, and punish mistakes.\n";
+}
+
+else {
+  guidance += "Extreme danger. Encounters are overwhelming, fast-paced, and unforgiving.\n";
+}
+
+guidance += "]\n";
+
+
+// ================= BOSS RECOGNITION =================
+
+let bossLogic = "";
+
+if (s.level >= 15) {
+  bossLogic = "Boss-level enemies should be rare, powerful, and require serious effort to defeat.";
+  guidance += bossLogic + "\n";
+}
+
+// ================= DUNGEON SCALING =================
+
+let dungeonScaling = "";
+
+if (s.level >= 15) {
+  dungeonScaling = "Dangerous locations contain high-level threats and complex challenges.";
+  guidance += dungeonScaling + "\n";
+}
+else if (s.level >= 10) {
+  dungeonScaling = "Locations are increasingly dangerous and require caution.";
+  guidance += dungeonScaling + "\n";
+}
+else if (s.level >= 5) {
+  dungeonScaling = "Locations may present moderate danger.";
+  guidance += dungeonScaling + "\n";
+}
+else {
+  dungeonScaling = "Most locations are relatively safe or low threat.";
+  guidance += dungeonScaling + "\n";
+}
+
+// ================= BOSS IDENTITY GENERATOR =================
+
+let bossIdentity = "";
+
+if (s.level >= 10) {
+
+  bossIdentity = 
+  "Boss enemies should have a defining trait, fighting style, and unique behavior.\n" +
+  "They should feel distinct from normal enemies.\n";
+
+  if (s.level >= 15) {
+    bossIdentity += "Bosses should have unique abilities or overwhelming presence.\n";
+    guidance += bossIdentity;
+  }
+}
+
+// ================= ENEMY ARCHETYPES =================
+
+let archetypes = 
+"Enemies may fall into archetypes such as:\n" +
+"- Brutes (high strength)\n" +
+"- Assassins (high agility)\n" +
+"- Casters (magic users)\n" +
+"- Hunters (tracking and ranged)\n";
+
+guidance += archetypes;
+
+// ================= SKILL GUIDANCE =================
+
+let skillGuidance = "";
+
+// SWORD
+if (s.skills["Heavy Blade"]) {
+  skillGuidance += "Attacks are heavy, powerful, and impactful.\n";
+}
+
+if (s.skills["Swift Blade"]) {
+  skillGuidance += "Attacks are fast, fluid, and continuous.\n";
+}
+
+if (s.skills["Precision Blade"]) {
+  skillGuidance += "Attacks target weak points with precision.\n";
+}
+
+// MAGE
+if (s.skills["Burst Magic"]) {
+  skillGuidance += "Magic is explosive and high impact.\n";
+}
+
+if (s.skills["Control Magic"]) {
+  skillGuidance += "Magic is controlled, precise, and efficient.\n";
+}
+
+if (s.skills["Rapid Casting"]) {
+  skillGuidance += "Spells are cast quickly in succession.\n";
+}
+
+// ROGUE
+if (s.skills["Shadowstep"]) {
+  skillGuidance += "Movement is fast and difficult to track.\n";
+}
+
+if (s.skills["Perfect Concealment"]) {
+  skillGuidance += "Presence is nearly undetectable.\n";
+}
+
+if (s.skills["Ambush Strike"]) {
+  skillGuidance += "Attacks come suddenly from hidden positions.\n";
+}
+
+// HUNTER
+if (s.skills["Deadeye Shot"]) {
+  skillGuidance += "Ranged attacks are highly accurate and lethal.\n";
+}
+
+// DEFENSE
+if (s.skills["Fortress Stance"]) {
+  skillGuidance += "Defense is stable, grounded, and immovable.\n";
+}
+
+// FINAL ADD
+if (skillGuidance) {
+  guidance += skillGuidance;
+}
+
+  // ================= FINAL =================
+  return {
+    text: systemBlock + guidance + text
+  };
+};
+
+modifier(text);

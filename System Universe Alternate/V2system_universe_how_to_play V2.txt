@@ -1,0 +1,278 @@
+SYSTEM UNIVERSE — HOW TO PLAY (UPDATED GUIDE)
+
+---
+
+## CORE IDEA
+
+You do not select abilities or classes manually.
+
+Everything is based on:
+
+* What you do
+* How consistently you do it
+* How well you execute it
+
+The System reads your actions and converts them into growth.
+
+---
+
+## HOW LEVELING WORKS
+
+There are TWO types of progression:
+
+---
+
+1. PLAYER LEVEL (XP)
+
+You gain XP through:
+
+* Meaningful actions
+* Combat
+* Interaction and awareness
+* Longer, more detailed inputs (small bonus)
+
+When you level up:
+
+* You gain stat points
+* Your overall capability improves
+
+---
+
+2. SKILLS (MOST IMPORTANT)
+
+Skills define your growth.
+
+You unlock a skill the FIRST time you use it.
+
+Examples:
+
+* Use a sword → Swordsmanship
+* Cast magic → Magic
+* Move quietly → Stealth
+
+To level skills:
+
+* Use them consistently
+* Use them effectively
+
+IMPORTANT:
+
+* Skills grow through repeated use
+* Consistency matters more than variety
+
+FOCUS = FASTER GROWTH
+
+---
+
+CLASSES
+
+Your class is determined by your FIRST developed skill.
+
+Examples:
+
+* Swordsmanship → Swordsman
+* Magic → Mage
+* Stealth → Rogue
+* Marksmanship → Hunter
+* Defense → Guardian
+
+You do not choose your class—the System assigns it based on your actions.
+
+Advanced and higher classes unlock later through:
+
+* Stat growth
+* Continued specialization
+
+---
+
+AFFINITY (CRITICAL)
+
+Your first core skill determines your affinity:
+
+* Melee
+* Magic
+* Stealth
+* Ranged
+* Defense
+
+Once set:
+
+* Other core paths are limited
+* Until Hybrid is unlocked
+
+This makes early choices important.
+
+---
+
+HYBRID SYSTEM
+
+Hybrid unlocks later through stat growth.
+
+When unlocked:
+
+* You can develop multiple paths
+* Restrictions between skill types are removed
+
+Hybrid builds are stronger but take longer to develop.
+
+---
+
+STAT ALLOCATION
+
+Command:
+allocate <stat> <amount>
+
+Example:
+allocate strength 3
+
+Stats:
+
+* Strength → physical power
+* Agility → speed and movement
+* Vitality → endurance
+* Intelligence → magic and control
+* Perception → awareness and reaction
+
+Stats influence performance AND unlock higher progression.
+
+---
+
+SKILL TRIGGERS (HOW TO GROW)
+
+Use natural actions, but clear intent helps.
+
+---
+
+MELEE (SWORDSMANSHIP)
+Focus: close combat
+
+Examples:
+
+* slash
+* lunge
+* strike
+* parry
+
+---
+
+MAGIC
+Focus: casting and control
+
+Examples:
+
+* cast
+* channel
+* conjure
+* shape energy
+
+---
+
+STEALTH
+Focus: staying unseen
+
+Examples:
+
+* sneak
+* vanish
+* hide
+* ambush
+
+---
+
+RANGED (MARKSMANSHIP)
+Focus: precision attacks
+
+Examples:
+
+* aim
+* shoot
+* fire
+* track
+
+---
+
+DEFENSE
+Focus: resisting damage
+
+Examples:
+
+* block
+* guard
+* brace
+* hold ground
+
+---
+
+PERCEPTION (UNIVERSAL)
+Focus: awareness
+
+Examples:
+
+* observe
+* scan
+* inspect
+* track movement
+
+---
+
+SURVIVAL (UNIVERSAL)
+Focus: endurance and recovery
+
+Examples:
+
+* endure
+* recover
+* adapt
+* resist
+
+---
+
+HOW TO LEVEL FAST (IMPORTANT)
+
+1. COMMIT EARLY
+   Pick a style and stick with it.
+
+2. BE SPECIFIC
+   "I slash low and pivot back" is better than "I attack"
+
+3. STAY CONSISTENT
+   Repeated actions build skills quickly.
+
+4. CONTROL YOUR ACTIONS
+   Efficiency matters more than randomness.
+
+5. USE YOUR STATS
+   They unlock stronger paths and evolution.
+
+---
+
+EXAMPLE (GOOD)
+
+"I step in, slash low, then follow with a quick upward strike."
+
+→ Strong Swordsmanship growth
+
+---
+
+EXAMPLE (BAD)
+
+"I attack, cast a spell, sneak, then shoot."
+
+→ No clear progression
+
+---
+
+FINAL NOTE
+
+The System does not guide you.
+
+It observes.
+
+It rewards:
+
+* consistency
+* control
+* efficiency
+
+What you repeat…
+is what you become.

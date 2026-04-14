@@ -1,0 +1,17 @@
+// ======================================================
+// OUTPUT — SILENT SYSTEM MODE
+// ======================================================
+
+const modifier = (text) => {
+
+  let output = text;
+
+  if (state.messages && state.messages.length) {
+    output += "\n\n[" + state.messages.join("\n") + "]";
+    state.messages = [];
+  }
+
+  return { text: output };
+};
+
+modifier(text);

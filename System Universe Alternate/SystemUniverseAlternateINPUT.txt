@@ -1,0 +1,792 @@
+// ======================================================
+// SYSTEM UNIVERSE ENGINE v4.3 — INPUT 
+// ======================================================
+
+const modifier = (text) => {
+
+  const input = text.toLowerCase();
+
+  // ================= INIT =================
+  if (!state.system) {
+    state.system = {
+      level: 1,
+      xp: 0,
+      xpRequired: 60,
+
+      stats: {
+        strength: 3,
+        agility: 3,
+        vitality: 3,
+        intelligence: 3,
+        perception: 3
+      },
+
+      freeStatPoints: 0,
+      class: { base: "Unassigned" },
+
+      affinity: null,
+
+      skills: {},
+      titles: [],
+      perks: [],
+      traits: [],
+      specializations: {},
+      flags: {}
+    };
+  }
+
+  if (!state.messages) state.messages = [];
+  const s = state.system;
+
+    // ================= WORLD PRESSURE INIT =================
+
+  if (!s.world) {
+    s.world = {
+      pressure: 0
+    };
+  }
+
+  // ================= SYSTEM ACTIVATION LOCK =================
+  if (!s.flags.systemActive) {
+    s.flags.turns = (s.flags.turns || 0) + 1;
+
+    if (s.flags.turns < 2) {
+      return { text };
+    }
+
+    s.flags.systemActive = true;
+    state.messages.push("System Initialized");
+  }
+
+  // ================= HELPERS =================
+  function gainXP(a){ s.xp += a; }
+
+  function addUnique(arr, val, msg){
+    if (!arr.includes(val)) {
+      arr.push(val);
+      if (msg) state.messages.push(msg);
+    }
+  }
+
+  function levelUp(){
+    while (s.xp >= s.xpRequired) {
+      s.xp -= s.xpRequired;
+      s.level++;
+
+      if (s.level < 10) s.freeStatPoints += 4;
+      else if (s.level < 20) s.freeStatPoints += 3;
+      else s.freeStatPoints += 2;
+
+      if (s.level < 10) s.xpRequired *= 1.15;
+      else if (s.level < 20) s.xpRequired *= 1.25;
+      else s.xpRequired *= 1.35;
+
+      s.xpRequired = Math.floor(s.xpRequired);
+
+      state.messages.push("System Notice: Level Up → " + s.level);
+    }
+  }
+
+  // ================= SKILL SYSTEM (FIXED) =================
+  function gainSkill(skill, amt){
+
+    // ✅ FIRST TIME USE = INSTANT UNLOCK
+    if (!s.skills[skill]) {
+      s.skills[skill] = { level:1, xp:0 };
+      state.messages.push(skill + " Learned");
+      return;
+    }
+
+    let sk = s.skills[skill];
+    sk.xp += amt;
+
+    let req = sk.level < 3 ? sk.level * 6 : sk.level * 10;
+
+    if (sk.xp >= req) {
+      sk.xp -= req;
+      sk.level++;
+      state.messages.push("System Notice: " + skill + " Lv." + sk.level);
+    }
+  }
+
+  // ================= CLASS BONUS SYSTEM =================
+  function grantClassBonus(cls) {
+
+    switch (cls) {
+
+      case "Swordsman":
+        if (s.skills["Swordsmanship"]) s.skills["Swordsmanship"].level += 1;
+        s.stats.strength += 2;
+        break;
+
+      case "Mage":
+        if (s.skills["Magic"]) s.skills["Magic"].level += 1;
+        s.stats.intelligence += 2;
+        break;
+
+      case "Rogue":
+        if (s.skills["Stealth"]) s.skills["Stealth"].level += 1;
+        s.stats.agility += 2;
+        break;
+
+      case "Hunter":
+        if (s.skills["Marksmanship"]) s.skills["Marksmanship"].level += 1;
+        s.stats.perception += 2;
+        break;
+
+      case "Guardian":
+        if (s.skills["Defense"]) s.skills["Defense"].level += 1;
+        s.stats.vitality += 2;
+        break;
+
+      // ADVANCED
+      case "Executioner":
+        s.stats.strength += 3;
+        break;
+
+      case "Arcanist":
+        s.stats.intelligence += 3;
+        break;
+
+      case "Assassin":
+        s.stats.agility += 3;
+        break;
+
+      case "Ranger":
+        s.stats.perception += 3;
+        break;
+
+      case "Bulwark":
+        s.stats.vitality += 3;
+        break;
+
+      // LEGENDARY
+      case "Warlord":
+        s.stats.strength += 5;
+        break;
+
+      case "Titan":
+        s.stats.vitality += 5;
+        break;
+
+      case "Phantom":
+        s.stats.agility += 5;
+        break;
+
+      case "Archsage":
+        s.stats.intelligence += 5;
+        break;
+    }
+  }
+
+  // ================= SKILL BUFFER (FIXED) =================
+  function bufferedSkill(skill, amount) {
+
+    if (!s.flags.skillBuffer) s.flags.skillBuffer = {};
+
+    s.flags.skillBuffer[skill] = (s.flags.skillBuffer[skill] || 0) + 1;
+
+    if (s.flags.skillBuffer[skill] >= 2) {
+      gainSkill(skill, amount);
+      s.flags.skillBuffer[skill] = 0;
+    }
+  }
+
+  // ================= AFFINITY SYSTEM =================
+
+  function setAffinity(skill) {
+    if (s.affinity) return;
+
+    const map = {
+      Swordsmanship: "melee",
+      Magic: "magic",
+      Stealth: "stealth",
+      Marksmanship: "ranged",
+      Defense: "defense"
+    };
+
+    if (map[skill]) {
+      s.affinity = map[skill];
+      state.messages.push("Affinity Chosen: " + s.affinity);
+    }
+  }
+
+  function gainSkillRestricted(skill, amt) {
+
+    const map = {
+      Swordsmanship: "melee",
+      Magic: "magic",
+      Stealth: "stealth",
+      Marksmanship: "ranged",
+      Defense: "defense"
+    };
+
+    let skillType = map[skill];
+
+   if (!s.affinity && skillType && s.level >= 2) {
+  setAffinity(skill);
+}
+
+    if (s.affinity && skillType && skillType !== s.affinity) {
+      if (!s.flags.hybridUnlocked) return;
+    }
+
+    bufferedSkill(skill, amt);
+  }
+
+    // ================= STAT ALLOCATION =================
+  if (/allocate/.test(input)) {
+    let m = input.match(/(strength|agility|vitality|intelligence|perception)\s*(\d+)/);
+    if (m) {
+      let stat = m[1];
+      let amt = parseInt(m[2]);
+      if (s.freeStatPoints >= amt) {
+        s.stats[stat] += amt;
+        s.freeStatPoints -= amt;
+        state.messages.push("Allocated " + amt + " → " + stat);
+      }
+    }
+  }
+
+  // ================= ACTIONS =================
+
+  // ⚔️ MELEE
+  if (/(slash|cleave|lunge|stab|parry|riposte|overpower|hack|sword|swipe|strike|cut)/.test(input)) {
+    gainXP(15);
+    gainSkillRestricted("Swordsmanship",5);
+  }
+
+  // 🔮 MAGIC
+  if (/(staff|cast|magic|spell|invoke|channel|conjure|weave|mana|arcane|infuse|project|energy)/.test(input)) {
+    gainXP(12);
+    gainSkillRestricted("Magic",5);
+  }
+
+  // 🕶️ STEALTH
+  if (/(dagger|sneak|creep|slip|vanish|fade|skulk|shadow|hidden|stealth|ambush)/.test(input)) {
+    gainXP(8);
+    gainSkillRestricted("Stealth",5);
+  }
+
+  // 🏹 RANGED
+  if (/(shoot|bow|arrow|aim|snipe|hunt|fire|shot|target|track)/.test(input)) {
+    gainXP(10);
+    gainSkillRestricted("Marksmanship",5);
+  }
+
+  // 🛡️ DEFENSE
+  if (/(block|defend|guard|brace|shield|hold|withstand|absorb|deflect|anchor)/.test(input)) {
+    gainXP(10);
+    gainSkillRestricted("Defense",5);
+  }
+
+  // 👁️ PERCEPTION
+  if (/(observe|scan|inspect|analyze|study|notice|watch|sense|track movement)/.test(input)) {
+    gainXP(8);
+    gainSkill("Perception",3);
+  }
+
+  // ❤️ SURVIVAL
+  if (/(endure|recover|stabilize|persist|adapt|resist|survive|tend)/.test(input)) {
+    gainXP(10);
+    gainSkill("Survival",4);
+  }
+
+  // 🧠 BONUS XP FOR LONG INPUT
+  if (input.length > 100) gainXP(6);
+
+  levelUp();
+
+    // ================= PRESSURE SYSTEM (HYBRID) =================
+
+  // 🔹 BASELINE FROM LEVEL (slow scaling)
+  let basePressure = Math.floor(s.level / 2);
+
+  // 🔹 ACTION SPIKES
+  let spike = 0;
+
+// ⚔️ ANY COMBAT INTENT (broad catch)
+if (/(attack|strike|fight|engage|charge|rush|lunge|press forward|go for|clash)/.test(input)) {
+  spike += 2;
+}
+
+// 🔮 MAGIC / POWER USE
+if (/(magic|spell|cast|mana|arcane|energy|blast|channel|unleash|invoke)/.test(input)) {
+  spike += 2;
+}
+
+// 🏹 RANGED / TARGETING
+if (/(shoot|fire|aim|snipe|target|track|arrow|bow|shot)/.test(input)) {
+  spike += 2;
+}
+
+// 🕶️ STEALTH / CONTROLLED ENGAGEMENT
+if (/(stealth|sneak|ambush|assassinate|silent|hidden|vanish|creep)/.test(input)) {
+  spike += 1;
+}
+
+// 🛡️ DEFENSIVE / TENSION SUSTAIN
+if (/(defend|block|brace|guard|hold|withstand|resist|endure)/.test(input)) {
+  spike += 1;
+}
+
+  // 🔹 PASSIVE DECAY (prevents runaway pressure)
+  s.world.pressure = Math.max(0, s.world.pressure - 1);
+
+  // 🔹 APPLY NEW PRESSURE
+  s.world.pressure = Math.max(
+    basePressure,
+    s.world.pressure + spike
+  );
+
+  // 🔹 HARD CAP (safety)
+  if (s.world.pressure > 20) s.world.pressure = 20;
+
+  // ================= CLASS SYSTEM (FIXED CORE) =================
+
+  if (s.class.base === "Unassigned") {
+
+    let chosenClass = null;
+
+    if (s.skills["Swordsmanship"]) chosenClass = "Swordsman";
+    else if (s.skills["Magic"]) chosenClass = "Mage";
+    else if (s.skills["Stealth"]) chosenClass = "Rogue";
+    else if (s.skills["Marksmanship"]) chosenClass = "Hunter";
+    else if (s.skills["Defense"]) chosenClass = "Guardian";
+
+    if (chosenClass) {
+      s.class.base = chosenClass;
+      grantClassBonus(chosenClass); // ✅ CRITICAL
+      state.messages.push("Class Acquired: " + chosenClass);
+    }
+  }
+
+  // ================= ADVANCED CLASSES =================
+
+  if (s.class.base === "Swordsman" && s.stats.strength >= 15) {
+    s.class.base = "Executioner";
+    grantClassBonus("Executioner");
+    state.messages.push("Class Evolved: Executioner");
+  }
+
+  if (s.class.base === "Mage" && s.stats.intelligence >= 15) {
+    s.class.base = "Arcanist";
+    grantClassBonus("Arcanist");
+    state.messages.push("Class Evolved: Arcanist");
+  }
+
+  if (s.class.base === "Rogue" && s.stats.agility >= 15) {
+    s.class.base = "Assassin";
+    grantClassBonus("Assassin");
+    state.messages.push("Class Evolved: Assassin");
+  }
+
+  if (s.class.base === "Hunter" && s.stats.perception >= 15) {
+    s.class.base = "Ranger";
+    grantClassBonus("Ranger");
+    state.messages.push("Class Evolved: Ranger");
+  }
+
+  if (s.class.base === "Guardian" && s.stats.vitality >= 15) {
+    s.class.base = "Bulwark";
+    grantClassBonus("Bulwark");
+    state.messages.push("Class Evolved: Bulwark");
+  }
+
+  // ================= LEGENDARY =================
+
+  if (!s.flags.legendary) s.flags.legendary = {};
+
+  if (s.level >= 15 && s.stats.strength >= 30 && !s.flags.legendary.warlord) {
+    s.flags.legendary.warlord = true;
+    s.class.base = "Warlord";
+    grantClassBonus("Warlord");
+    state.messages.push("Legendary Class → Warlord");
+  }
+
+  if (s.level >= 15 && s.stats.vitality >= 30 && !s.flags.legendary.titan) {
+    s.flags.legendary.titan = true;
+    s.class.base = "Titan";
+    grantClassBonus("Titan");
+    state.messages.push("Legendary Class → Titan");
+  }
+
+  if (s.level >= 15 && s.stats.agility >= 30 && !s.flags.legendary.phantom) {
+    s.flags.legendary.phantom = true;
+    s.class.base = "Phantom";
+    grantClassBonus("Phantom");
+    state.messages.push("Legendary Class → Phantom");
+  }
+
+  if (s.level >= 15 && s.stats.intelligence >= 30 && !s.flags.legendary.archsage) {
+    s.flags.legendary.archsage = true;
+    s.class.base = "Archsage";
+    grantClassBonus("Archsage");
+    state.messages.push("Legendary Class → Archsage");
+  }
+
+    // ================= SKILL STYLE TRACKING =================
+
+  if (!s.flags.skillStyle) s.flags.skillStyle = {};
+
+  if (/heavy|power|smash/.test(input)) {
+    s.flags.skillStyle.heavy = (s.flags.skillStyle.heavy || 0) + 1;
+  }
+
+  if (/quick|fast|rapid/.test(input)) {
+    s.flags.skillStyle.speed = (s.flags.skillStyle.speed || 0) + 1;
+  }
+
+  if (/precise|aim|careful/.test(input)) {
+    s.flags.skillStyle.precision = (s.flags.skillStyle.precision || 0) + 1;
+  }
+
+  // ================= EVOLUTION STATE =================
+
+  if (!s.flags.skillEvolution) s.flags.skillEvolution = {};
+  if (!s.flags.skillEvolutionTier2) s.flags.skillEvolutionTier2 = {};
+
+  // ================= EVOLVE FUNCTION =================
+
+  function evolveSkill(baseSkill, paths, allowedClasses) {
+
+    if (!s.skills[baseSkill]) return;
+    if (s.skills[baseSkill].level < 7) return;
+    if (s.flags.skillEvolution[baseSkill]) return;
+
+    if (allowedClasses && !allowedClasses.includes(s.class.base)) return;
+
+    let styles = s.flags.skillStyle || {};
+
+    let chosen = Object.entries(paths).sort((a,b)=>{
+      return (styles[b[0]]||0) - (styles[a[0]]||0);
+    })[0];
+
+    if (!chosen) return;
+
+    let newSkill = paths[chosen[0]];
+
+    if (!s.skills[newSkill]) {
+      s.skills[newSkill] = { level:1, xp:0 };
+      s.flags.skillEvolution[baseSkill] = newSkill;
+      state.messages.push(baseSkill + " evolved → " + newSkill);
+    }
+  }
+
+  // ================= TIER 2 =================
+
+  function evolveSkillTier2(skill, paths) {
+
+    if (!s.skills[skill]) return;
+    if (s.skills[skill].level < 5) return;
+    if (s.flags.skillEvolutionTier2[skill]) return;
+
+    let next = Object.values(paths)[0];
+
+    if (!s.skills[next]) {
+      s.skills[next] = { level:1, xp:0 };
+      s.flags.skillEvolutionTier2[skill] = next;
+      state.messages.push(skill + " evolved → " + next);
+    }
+  }
+
+  // ================= APPLY EVOLUTIONS =================
+
+  evolveSkill("Swordsmanship", {
+    heavy: "Heavy Blade",
+    speed: "Swift Blade",
+    precision: "Precision Blade"
+  }, ["Swordsman","Executioner","Warlord"]);
+
+  evolveSkill("Magic", {
+    heavy: "Burst Magic",
+    speed: "Rapid Casting",
+    precision: "Control Magic"
+  }, ["Mage","Arcanist","Archsage"]);
+
+  evolveSkill("Stealth", {
+    speed: "Shadowstep",
+    precision: "Perfect Concealment",
+    heavy: "Ambush Strike"
+  }, ["Rogue","Assassin","Phantom"]);
+
+  evolveSkill("Marksmanship", {
+    precision: "Deadeye Shot",
+    speed: "Rapid Shot",
+    heavy: "Piercing Shot"
+  }, ["Hunter","Ranger"]);
+
+  evolveSkill("Defense", {
+    heavy: "Fortress Stance",
+    precision: "Perfect Guard",
+    speed: "Reactive Guard"
+  }, ["Guardian","Bulwark","Titan"]);
+
+  evolveSkill("Perception", {
+    precision: "Enhanced Awareness",
+    speed: "Instinctive Reaction",
+    heavy: "Threat Detection"
+  });
+
+  evolveSkill("Survival", {
+    heavy: "Iron Endurance",
+    precision: "Resource Efficiency",
+    speed: "Adaptive Survival"
+  });
+
+  // ================= DEPTH EVOLUTIONS =================
+
+  evolveSkill("Control Magic", {
+    precision: "Mana Manipulation",
+    speed: "Spell Weaving",
+    heavy: "Arcane Pressure"
+  }, ["Mage","Arcanist","Archsage"]);
+
+  evolveSkill("Shadowstep", {
+    speed: "Afterimage",
+    precision: "Phase Step",
+    heavy: "Blink Strike"
+  }, ["Rogue","Assassin","Phantom"]);
+
+  evolveSkill("Deadeye Shot", {
+    precision: "Vital Targeting",
+    speed: "Chain Shot",
+    heavy: "Crippling Shot"
+  }, ["Hunter","Ranger"]);
+
+  evolveSkill("Fortress Stance", {
+    heavy: "Iron Bastion",
+    precision: "Guard Mastery",
+    speed: "Adaptive Shield"
+  }, ["Guardian","Bulwark","Titan"]);
+
+  // ================= TIER 2 =================
+
+  evolveSkillTier2("Heavy Blade", { final: "Execution Strike" });
+  evolveSkillTier2("Swift Blade", { final: "Phantom Cut" });
+  evolveSkillTier2("Precision Blade", { final: "Vital Strike" });
+
+  evolveSkillTier2("Burst Magic", { final: "Arcane Detonation" });
+  evolveSkillTier2("Rapid Casting", { final: "Spell Overdrive" });
+  evolveSkillTier2("Control Magic", { final: "Absolute Control" });
+
+  evolveSkillTier2("Mana Manipulation", { final: "Reality Bending" });
+  evolveSkillTier2("Spell Weaving", { final: "Infinite Casting" });
+  evolveSkillTier2("Arcane Pressure", { final: "Mana Crush" });
+
+  evolveSkillTier2("Shadowstep", { final: "Void Step" });
+  evolveSkillTier2("Perfect Concealment", { final: "True Invisibility" });
+  evolveSkillTier2("Ambush Strike", { final: "Execution Ambush" });
+
+  evolveSkillTier2("Afterimage", { final: "Phantom Presence" });
+  evolveSkillTier2("Phase Step", { final: "Dimensional Slip" });
+  evolveSkillTier2("Blink Strike", { final: "Instant Kill Strike" });
+
+  evolveSkillTier2("Deadeye Shot", { final: "True Shot" });
+  evolveSkillTier2("Rapid Shot", { final: "Arrow Storm" });
+  evolveSkillTier2("Piercing Shot", { final: "Armor Breaker" });
+
+  evolveSkillTier2("Fortress Stance", { final: "Immovable Bastion" });
+  evolveSkillTier2("Perfect Guard", { final: "Absolute Defense" });
+  evolveSkillTier2("Reactive Guard", { final: "Reflex Barrier" });
+
+  evolveSkillTier2("Enhanced Awareness", { final: "Battle Foresight" });
+  evolveSkillTier2("Instinctive Reaction", { final: "Preemptive Reflex" });
+  evolveSkillTier2("Threat Detection", { final: "Killer Insight" });
+
+  evolveSkillTier2("Iron Endurance", { final: "Undying Body" });
+  evolveSkillTier2("Adaptive Survival", { final: "Evolutionary Response" });
+
+  // ================= HYBRID SYSTEM =================
+
+  if (!s.flags.hybrid) s.flags.hybrid = {};
+
+  function addHybrid(title) {
+    if (!s.titles.includes(title)) {
+      s.titles.push(title);
+      state.messages.push("Identity Formed: " + title);
+    }
+  }
+
+  if (s.stats.strength >= 18 && s.stats.agility >= 18 && !s.flags.hybrid.reaper) {
+    s.flags.hybrid.reaper = true;
+    addHybrid("Reaper");
+  }
+
+  if (s.stats.intelligence >= 18 && s.stats.perception >= 18 && !s.flags.hybrid.oracle) {
+    s.flags.hybrid.oracle = true;
+    addHybrid("Oracle");
+  }
+
+  if (s.stats.strength >= 18 && s.stats.vitality >= 18 && !s.flags.hybrid.colossus) {
+    s.flags.hybrid.colossus = true;
+    addHybrid("Colossus");
+  }
+
+  if (s.stats.agility >= 18 && s.stats.perception >= 18 && !s.flags.hybrid.stalker) {
+    s.flags.hybrid.stalker = true;
+    addHybrid("Stalker");
+  }
+
+  if (s.stats.intelligence >= 18 && s.stats.agility >= 18 && !s.flags.hybrid.spellblade) {
+    s.flags.hybrid.spellblade = true;
+    addHybrid("Spellblade");
+  }
+
+  // ================= HYBRID UNLOCK =================
+
+  if (!s.flags.hybridUnlocked) {
+    if (
+      (s.stats.strength >= 18 && s.stats.agility >= 18) ||
+      (s.stats.intelligence >= 18 && s.stats.perception >= 18) ||
+      (s.stats.strength >= 18 && s.stats.vitality >= 18)
+    ) {
+      s.flags.hybridUnlocked = true;
+      state.messages.push("Hybrid Potential Unlocked");
+    }
+  }
+
+  // ================= HYBRID PERKS =================
+
+  if (s.titles.includes("Reaper")) addUnique(s.perks,"Execution Momentum");
+  if (s.titles.includes("Oracle")) addUnique(s.perks,"Future Sight");
+  if (s.titles.includes("Colossus")) addUnique(s.perks,"Unstoppable Force");
+  if (s.titles.includes("Stalker")) addUnique(s.perks,"Predator Vision");
+  if (s.titles.includes("Spellblade")) addUnique(s.perks,"Arcane Edge");
+
+  // ================= TITLES =================
+
+  if (s.level >= 3) addUnique(s.titles,"Rising One");
+  if (s.level >= 10) addUnique(s.titles,"Veteran");
+  if (s.level >= 20) addUnique(s.titles,"Ascendant");
+
+  if (s.skills["Swordsmanship"]?.level >= 5) addUnique(s.titles,"Blade Adept");
+  if (s.skills["Magic"]?.level >= 5) addUnique(s.titles,"Spell Initiate");
+  if (s.skills["Stealth"]?.level >= 5) addUnique(s.titles,"Shadow Walker");
+  if (s.skills["Marksmanship"]?.level >= 5) addUnique(s.titles,"Deadeye");
+  if (s.skills["Defense"]?.level >= 5) addUnique(s.titles,"Iron Wall");
+
+
+// ================= PERKS (STRUCTURED PROGRESSION) =================
+
+// ===== SWORD PATH =====
+if (s.skills["Swordsmanship"]?.level >= 3) addUnique(s.perks,"Blade Flow");
+if (s.skills["Swordsmanship"]?.level >= 6) addUnique(s.perks,"Heavy Strikes");
+if (s.skills["Swordsmanship"]?.level >= 10) addUnique(s.perks,"Execution Edge");
+
+// ===== MAGIC PATH =====
+if (s.skills["Magic"]?.level >= 3) addUnique(s.perks,"Mana Efficiency");
+if (s.skills["Magic"]?.level >= 6) addUnique(s.perks,"Arcane Control");
+if (s.skills["Magic"]?.level >= 10) addUnique(s.perks,"Spell Overcharge");
+
+// ===== STEALTH PATH =====
+if (s.skills["Stealth"]?.level >= 3) addUnique(s.perks,"Silent Step");
+if (s.skills["Stealth"]?.level >= 6) addUnique(s.perks,"Evasion Instinct");
+if (s.skills["Stealth"]?.level >= 10) addUnique(s.perks,"Shadow Dominance");
+
+// ===== RANGED PATH =====
+if (s.skills["Marksmanship"]?.level >= 3) addUnique(s.perks,"Steady Aim");
+if (s.skills["Marksmanship"]?.level >= 6) addUnique(s.perks,"Keen Eye");
+if (s.skills["Marksmanship"]?.level >= 10) addUnique(s.perks,"True Shot");
+
+// ===== DEFENSE PATH =====
+if (s.skills["Defense"]?.level >= 3) addUnique(s.perks,"Iron Guard");
+if (s.skills["Defense"]?.level >= 6) addUnique(s.perks,"Resilience");
+if (s.skills["Defense"]?.level >= 10) addUnique(s.perks,"Unbreakable");
+
+// ===== UNIVERSAL =====
+if (s.level >= 5) addUnique(s.perks,"Quick Recovery");
+if (s.level >= 10) addUnique(s.perks,"Battle Focus");
+if (s.level >= 15) addUnique(s.perks,"Adaptation");
+
+
+  // ================= TRAITS (RARE MILESTONES) =================
+
+// ===== LEVEL BASED =====
+if (s.level >= 10) addUnique(s.traits,"Hardened");
+if (s.level >= 15) addUnique(s.traits,"Focused");
+if (s.level >= 20) addUnique(s.traits,"Relentless");
+
+// ===== SPECIALIZATION TRAITS =====
+if (s.skills["Swordsmanship"]?.level >= 10) addUnique(s.traits,"Battle Scarred");
+if (s.skills["Magic"]?.level >= 10) addUnique(s.traits,"Mana Attuned");
+if (s.skills["Stealth"]?.level >= 10) addUnique(s.traits,"Unseen");
+if (s.skills["Marksmanship"]?.level >= 10) addUnique(s.traits,"Deadeye Mind");
+if (s.skills["Defense"]?.level >= 10) addUnique(s.traits,"Unyielding");
+
+// ===== HYBRID REINFORCEMENT =====
+if (s.titles.includes("Reaper")) addUnique(s.traits,"Killer Instinct");
+if (s.titles.includes("Oracle")) addUnique(s.traits,"Future Awareness");
+if (s.titles.includes("Colossus")) addUnique(s.traits,"Immovable");
+if (s.titles.includes("Stalker")) addUnique(s.traits,"Predatory Focus");
+if (s.titles.includes("Spellblade")) addUnique(s.traits,"Arcane Reflex");
+
+  // ================= TRAIT → PERK (SYNERGY SYSTEM) =================
+
+// ===== CORE TRAIT SYNERGY =====
+if (s.traits.includes("Hardened")) addUnique(s.perks,"Iron Skin");
+if (s.traits.includes("Focused")) addUnique(s.perks,"Adaptive Mind");
+if (s.traits.includes("Relentless")) addUnique(s.perks,"Momentum Drive");
+
+// ===== SPECIALIZATION SYNERGY =====
+if (s.traits.includes("Battle Scarred")) addUnique(s.perks,"Pain Tolerance");
+if (s.traits.includes("Mana Attuned")) addUnique(s.perks,"Mana Surge");
+if (s.traits.includes("Unseen")) addUnique(s.perks,"Ghost Step");
+if (s.traits.includes("Deadeye Mind")) addUnique(s.perks,"Tracking");
+if (s.traits.includes("Unyielding")) addUnique(s.perks,"Counterstrike");
+
+// ===== HYBRID SYNERGY =====
+if (s.traits.includes("Killer Instinct")) addUnique(s.perks,"Execution Momentum");
+if (s.traits.includes("Future Awareness")) addUnique(s.perks,"Spell Echo");
+if (s.traits.includes("Immovable")) addUnique(s.perks,"Unstoppable Force");
+if (s.traits.includes("Predatory Focus")) addUnique(s.perks,"Predator Vision");
+if (s.traits.includes("Arcane Reflex")) addUnique(s.perks,"Arcane Edge");
+
+  // ================= STATUS CARD =================
+
+  if (Array.isArray(storyCards)) {
+
+    const desc =
+`Level: ${s.level}
+XP: ${Math.floor(s.xp)}/${Math.floor(s.xpRequired)}
+Class: ${s.class.base}
+Affinity: ${s.affinity || "None"}
+
+Stats:
+STR ${s.stats.strength} AGI ${s.stats.agility} VIT ${s.stats.vitality}
+INT ${s.stats.intelligence} PER ${s.stats.perception}
+
+Free Points: ${s.freeStatPoints}
+
+Skills:
+${Object.entries(s.skills).map(([k,v])=>k+" Lv."+v.level).join(", ") || "None"}
+
+Titles:
+${s.titles.join(", ") || "None"}
+
+Perks:
+${s.perks.join(", ") || "None"}
+
+Traits:
+${s.traits.join(", ") || "None"}
+`;
+
+    let card = storyCards.find(c => c.title === "System Status");
+
+    if (!card) {
+      storyCards.push({
+        title: "System Status",
+        type: "World",
+        keys: "system,status",
+        entry: desc
+      });
+    } else {
+      card.entry = desc;
+    }
+  }
+
+  // ================= FINAL =================
+  return { text };
+};
+
+modifier(text);
